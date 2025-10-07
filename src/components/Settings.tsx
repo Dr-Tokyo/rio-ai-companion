@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings as SettingsIcon, Crown, Accessibility, Palette, Sliders } from "lucide-react";
+import { Settings as SettingsIcon, Accessibility, Palette, Sliders } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -26,7 +26,6 @@ interface SettingsProps {
   userId: string;
   selectedModel: string;
   onModelChange: (model: string) => void;
-  isAdmin: boolean;
 }
 
 const AI_MODELS = [
@@ -83,8 +82,7 @@ const AI_MODELS = [
 export const Settings = ({ 
   userId, 
   selectedModel,
-  onModelChange,
-  isAdmin
+  onModelChange
 }: SettingsProps) => {
   const [fontSize, setFontSize] = useState("medium");
   const [highContrast, setHighContrast] = useState(false);
@@ -221,19 +219,13 @@ export const Settings = ({
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="outline" size="icon" className="relative">
+        <Button variant="outline" size="icon">
           <SettingsIcon className="w-4 h-4" />
-          {isAdmin && (
-            <Crown className="w-3 h-3 absolute -top-1 -right-1 text-yellow-500" />
-          )}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            Settings
-            {isAdmin && <Crown className="w-4 h-4 text-yellow-500" />}
-          </DialogTitle>
+          <DialogTitle>Settings</DialogTitle>
           <DialogDescription>
             Customize your Rio Futaba AI experience
           </DialogDescription>

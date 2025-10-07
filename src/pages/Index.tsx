@@ -12,24 +12,19 @@ import { StudyTimer } from "@/components/StudyTimer";
 import { FlashcardManager } from "@/components/FlashcardManager";
 import { QuizGenerator } from "@/components/QuizGenerator";
 import { StudyProgress } from "@/components/StudyProgress";
-import { Send, Loader2, LogOut, Download, Crown } from "lucide-react";
+import { Send, Loader2, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
-import type { User, Session } from "@supabase/supabase-js";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
 }
 
-const ADMIN_EMAIL = "admin@rio.ai";
-const ADMIN_PASSWORD = "admin123";
+// Fixed user ID for all operations (no auth required)
+const FIXED_USER_ID = "00000000-0000-0000-0000-000000000001";
 
 const Index = () => {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -39,93 +34,18 @@ const Index = () => {
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
-  const navigate = useNavigate();
 
-  // Auto-login admin on mount
+  // Initialize on mount
   useEffect(() => {
-    const autoLoginAdmin = async () => {
-      // Check if already logged in
-      const { data: sessionData } = await supabase.auth.getSession();
-      
-      if (!sessionData.session) {
-        console.log("No session found, attempting admin auto-login...");
-        const { error } = await supabase.auth.signInWithPassword({
-          email: ADMIN_EMAIL,
-          password: ADMIN_PASSWORD,
-        });
-
-        if (error) {
-          console.error("Admin auto-login failed:", error);
-          // Try to create admin account if it doesn't exist
-          const { error: signUpError } = await supabase.auth.signUp({
-            email: ADMIN_EMAIL,
-            password: ADMIN_PASSWORD,
-            options: {
-              emailRedirectTo: window.location.origin,
-            }
-          });
-          
-          if (!signUpError) {
-            // Try logging in again
-            await supabase.auth.signInWithPassword({
-              email: ADMIN_EMAIL,
-              password: ADMIN_PASSWORD,
-            });
-          }
-        }
-      }
-    };
-
-    autoLoginAdmin();
+    loadUserPreferences();
+    createInitialConversation();
   }, []);
 
-  // Auth state management
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          setTimeout(() => {
-            checkAdminStatus(session.user.id);
-            loadUserPreferences(session.user.id);
-            createInitialConversation(session.user.id);
-          }, 0);
-        }
-      }
-    );
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        checkAdminStatus(session.user.id);
-        loadUserPreferences(session.user.id);
-        createInitialConversation(session.user.id);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const checkAdminStatus = async (userId: string) => {
-    const { data } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .eq("role", "admin")
-      .single();
-
-    setIsAdmin(!!data);
-  };
-
-  const loadUserPreferences = async (userId: string) => {
+  const loadUserPreferences = async () => {
     const { data } = await supabase
       .from("profiles")
       .select("preferred_model")
-      .eq("user_id", userId)
+      .eq("user_id", FIXED_USER_ID)
       .maybeSingle();
 
     if (data?.preferred_model) {
@@ -133,11 +53,11 @@ const Index = () => {
     }
   };
 
-  const createInitialConversation = async (userId: string) => {
+  const createInitialConversation = async () => {
     const { data: existingConvs } = await supabase
       .from("conversations")
       .select("id")
-      .eq("user_id", userId)
+      .eq("user_id", FIXED_USER_ID)
       .order("created_at", { ascending: false })
       .limit(1);
 
@@ -145,7 +65,7 @@ const Index = () => {
       const { data: newConv } = await supabase
         .from("conversations")
         .insert({
-          user_id: userId,
+          user_id: FIXED_USER_ID,
           title: "New Conversation",
           subject: "physics",
         })
@@ -209,7 +129,7 @@ const Index = () => {
 
 
   const handleSend = async () => {
-    if (!input.trim() || isLoading || !user || !currentConversationId) return;
+    if (!input.trim() || isLoading || !currentConversationId) return;
 
     const userMessage: Message = { role: "user", content: input };
     const messageText = input;
@@ -294,15 +214,6 @@ const Index = () => {
     }
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    // Immediately log back in as admin
-    await supabase.auth.signInWithPassword({
-      email: ADMIN_EMAIL,
-      password: ADMIN_PASSWORD,
-    });
-  };
-
   const exportConversation = () => {
     const exportData = {
       conversation_id: currentConversationId,
@@ -326,17 +237,6 @@ const Index = () => {
     });
   };
 
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-gradient-secondary flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gradient-secondary flex flex-col">
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
@@ -346,42 +246,30 @@ const Index = () => {
               <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
                 Rio Futaba Study Bot
               </h1>
-              {isAdmin && <Crown className="w-5 h-5 text-yellow-500" />}
             </div>
             <div className="flex items-center gap-2">
-              {user && (
-                <>
-                  <StudyProgress userId={user.id} />
-                  <StudyTimer userId={user.id} subject={selectedSubject} />
-                  <FlashcardManager userId={user.id} subject={selectedSubject} />
-                  <QuizGenerator userId={user.id} subject={selectedSubject} />
-                </>
-              )}
+              <StudyProgress userId={FIXED_USER_ID} />
+              <StudyTimer userId={FIXED_USER_ID} subject={selectedSubject} />
+              <FlashcardManager userId={FIXED_USER_ID} subject={selectedSubject} />
+              <QuizGenerator userId={FIXED_USER_ID} subject={selectedSubject} />
               <Button variant="outline" size="icon" onClick={exportConversation} title="Export conversation">
                 <Download className="w-4 h-4" />
               </Button>
-              {user && (
-                <ConversationSearch
-                  userId={user.id}
-                  onSelectConversation={loadConversation}
-                />
-              )}
-              {user && (
-                <ConversationList
-                  userId={user.id}
-                  currentConversationId={currentConversationId}
-                  onSelectConversation={loadConversation}
-                  onNewConversation={() => createInitialConversation(user.id)}
-                />
-              )}
-              {user && (
-                <Settings
-                  userId={user.id}
-                  selectedModel={selectedModel}
-                  onModelChange={setSelectedModel}
-                  isAdmin={isAdmin}
-                />
-              )}
+              <ConversationSearch
+                userId={FIXED_USER_ID}
+                onSelectConversation={loadConversation}
+              />
+              <ConversationList
+                userId={FIXED_USER_ID}
+                currentConversationId={currentConversationId}
+                onSelectConversation={loadConversation}
+                onNewConversation={createInitialConversation}
+              />
+              <Settings
+                userId={FIXED_USER_ID}
+                selectedModel={selectedModel}
+                onModelChange={setSelectedModel}
+              />
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -453,7 +341,7 @@ const Index = () => {
             </Button>
           </div>
           <p className="text-xs text-muted-foreground text-center mt-2">
-            Using: {selectedModel.split("/")[1]} {isAdmin && "• Admin Mode"}
+            Using: {selectedModel.split("/")[1]}
           </p>
         </div>
       </footer>
