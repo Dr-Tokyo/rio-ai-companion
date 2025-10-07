@@ -40,9 +40,13 @@ const Index = () => {
   }, [messages]);
 
   const playAudio = async (text: string) => {
-    if (!voiceEnabled) return;
+    if (!voiceEnabled) {
+      console.log("Voice disabled, skipping audio");
+      return;
+    }
 
     try {
+      console.log("Starting audio playback for text:", text.substring(0, 50));
       setIsSpeaking(true);
       
       const response = await fetch(
@@ -57,25 +61,50 @@ const Index = () => {
         }
       );
 
-      if (!response.ok) throw new Error("TTS failed");
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("TTS response error:", errorData);
+        throw new Error(errorData.error || "TTS failed");
+      }
 
       const data = await response.json();
+      console.log("Received audio data, creating audio element");
       
-      // Create audio element and play
+      // Stop any currently playing audio
       if (audioRef.current) {
         audioRef.current.pause();
+        audioRef.current = null;
       }
 
       const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`);
       audioRef.current = audio;
       
-      audio.onended = () => setIsSpeaking(false);
-      audio.onerror = () => setIsSpeaking(false);
+      audio.onended = () => {
+        console.log("Audio playback ended");
+        setIsSpeaking(false);
+      };
       
+      audio.onerror = (e) => {
+        console.error("Audio element error:", e);
+        setIsSpeaking(false);
+        toast({
+          title: "Audio Error",
+          description: "Failed to play audio. Check console for details.",
+          variant: "destructive",
+        });
+      };
+      
+      console.log("Starting audio playback");
       await audio.play();
+      console.log("Audio playing successfully");
     } catch (error) {
       console.error("Audio playback error:", error);
       setIsSpeaking(false);
+      toast({
+        title: "Audio Error",
+        description: error instanceof Error ? error.message : "Failed to play audio",
+        variant: "destructive",
+      });
     }
   };
 
