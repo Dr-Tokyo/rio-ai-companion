@@ -407,8 +407,8 @@ const Index = () => {
   return (
     <div className={`min-h-screen bg-gradient-secondary flex flex-col ${isIOS ? 'ios-optimized' : ''}`}>
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container max-w-6xl mx-auto px-4 py-3 md:py-4">
-          <div className="flex items-center justify-between mb-3 md:mb-4 gap-2">
+        <div className={`container max-w-6xl mx-auto px-4 ${isIOS ? 'py-2' : 'py-3 md:py-4'}`}>
+          <div className={`flex items-center justify-between gap-2 ${isIOS ? 'mb-2' : 'mb-3 md:mb-4'}`}>
             <div className="flex items-center gap-2">
               <h1 className="text-xl md:text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
                 Rio Futaba Study Bot

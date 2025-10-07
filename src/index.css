@@ -109,6 +109,10 @@ All colors MUST be HSL.
     -webkit-tap-highlight-color: transparent;
   }
 
+  .ios-optimized header {
+    padding-top: max(0.5rem, env(safe-area-inset-top));
+  }
+
   .ios-optimized input,
   .ios-optimized textarea,
   .ios-optimized button {
@@ -118,6 +122,10 @@ All colors MUST be HSL.
 
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
   }
 
   /* Prevent iOS zoom on input focus */
