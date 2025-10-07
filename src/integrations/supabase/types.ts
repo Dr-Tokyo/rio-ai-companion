@@ -421,12 +421,26 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_shared_note_by_code: {
+        Args: { p_share_code: string }
+        Returns: {
+          created_at: string
+          expires_at: string
+          note_id: string
+          share_code: string
+          view_count: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_share_view_count: {
+        Args: { p_share_code: string }
+        Returns: undefined
       }
     }
     Enums: {

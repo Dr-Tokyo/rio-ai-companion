@@ -34,24 +34,23 @@ export default function SharedNote() {
     }
 
     try {
-      // Get the shared note
+      // Use the secure function to get shared note
       const { data: sharedData, error: sharedError } = await supabase
-        .from("shared_notes")
-        .select("note_id, view_count")
-        .eq("share_code", shareCode)
-        .single();
+        .rpc("get_shared_note_by_code", { p_share_code: shareCode });
 
-      if (sharedError || !sharedData) {
+      if (sharedError || !sharedData || sharedData.length === 0) {
         setError(true);
         setLoading(false);
         return;
       }
 
+      const shareInfo = sharedData[0];
+
       // Get the actual note
       const { data: noteData, error: noteError } = await supabase
         .from("study_notes")
         .select("*")
-        .eq("id", sharedData.note_id)
+        .eq("id", shareInfo.note_id)
         .single();
 
       if (noteError || !noteData) {
@@ -62,11 +61,8 @@ export default function SharedNote() {
 
       setNote(noteData);
 
-      // Increment view count
-      await supabase
-        .from("shared_notes")
-        .update({ view_count: (sharedData.view_count || 0) + 1 })
-        .eq("share_code", shareCode);
+      // Increment view count using secure function
+      await supabase.rpc("increment_share_view_count", { p_share_code: shareCode });
 
       setLoading(false);
     } catch (err) {
