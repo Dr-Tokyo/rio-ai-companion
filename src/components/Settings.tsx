@@ -17,10 +17,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings as SettingsIcon, Accessibility, Palette, Sliders } from "lucide-react";
+import { Settings as SettingsIcon, Accessibility, Palette, Sliders, Bell, Lock, Download, Trash2, User } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
 
 interface SettingsProps {
   userId: string;
@@ -92,6 +93,11 @@ export const Settings = ({
   const [showTimestamps, setShowTimestamps] = useState(true);
   const [showCharacter, setShowCharacter] = useState(true);
   const [keyboardShortcuts, setKeyboardShortcuts] = useState(true);
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [notifications, setNotifications] = useState(true);
+  const [autoSave, setAutoSave] = useState(true);
+  const [soundEffects, setSoundEffects] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -102,6 +108,11 @@ export const Settings = ({
 
   const loadSettings = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setEmail(user.email || "");
+      }
+
       const { data, error } = await supabase
         .from("profiles")
         .select(`
@@ -113,7 +124,8 @@ export const Settings = ({
           message_density,
           show_timestamps,
           show_character,
-          keyboard_shortcuts
+          keyboard_shortcuts,
+          username
         `)
         .eq("user_id", userId)
         .maybeSingle();
@@ -137,6 +149,7 @@ export const Settings = ({
         setShowTimestamps(data.show_timestamps ?? true);
         setShowCharacter(data.show_character ?? true);
         setKeyboardShortcuts(data.keyboard_shortcuts ?? true);
+        setUsername(data.username || "");
       }
     } catch (error) {
       console.error("Settings load error:", error);
@@ -171,6 +184,7 @@ export const Settings = ({
             show_timestamps: showTimestamps,
             show_character: showCharacter,
             keyboard_shortcuts: keyboardShortcuts,
+            username: username,
           });
 
         if (insertError) {
@@ -196,6 +210,7 @@ export const Settings = ({
             show_timestamps: showTimestamps,
             show_character: showCharacter,
             keyboard_shortcuts: keyboardShortcuts,
+            username: username,
           })
           .eq("user_id", userId);
 
@@ -239,8 +254,12 @@ export const Settings = ({
           </DialogDescription>
         </DialogHeader>
         
-        <Tabs defaultValue="ai" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+        <Tabs defaultValue="general" className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="general">
+              <SettingsIcon className="w-4 h-4 mr-2" />
+              General
+            </TabsTrigger>
             <TabsTrigger value="ai">
               <Sliders className="w-4 h-4 mr-2" />
               AI
@@ -254,6 +273,120 @@ export const Settings = ({
               Display
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="general" className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label htmlFor="username">Username</Label>
+              <div className="flex items-center gap-2">
+                <User className="w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="username"
+                  placeholder="Enter your username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">Display name for your profile</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                disabled
+                className="bg-muted"
+              />
+              <p className="text-xs text-muted-foreground">Email cannot be changed here</p>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <Label htmlFor="notifications">
+                  <div className="flex items-center gap-2">
+                    <Bell className="w-4 h-4" />
+                    Notifications
+                  </div>
+                </Label>
+                <p className="text-xs text-muted-foreground">Receive study reminders</p>
+              </div>
+              <Switch
+                id="notifications"
+                checked={notifications}
+                onCheckedChange={setNotifications}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <Label htmlFor="auto-save">Auto-Save Conversations</Label>
+                <p className="text-xs text-muted-foreground">Automatically save chat history</p>
+              </div>
+              <Switch
+                id="auto-save"
+                checked={autoSave}
+                onCheckedChange={setAutoSave}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <Label htmlFor="sound-effects">Sound Effects</Label>
+                <p className="text-xs text-muted-foreground">Play sounds for actions</p>
+              </div>
+              <Switch
+                id="sound-effects"
+                checked={soundEffects}
+                onCheckedChange={setSoundEffects}
+              />
+            </div>
+
+            <div className="space-y-2 pt-4 border-t">
+              <Label className="flex items-center gap-2 text-destructive">
+                <Lock className="w-4 h-4" />
+                Privacy & Data
+              </Label>
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={async () => {
+                  const { data: sessions } = await supabase
+                    .from("study_sessions")
+                    .select("*")
+                    .eq("user_id", userId);
+                  
+                  const blob = new Blob([JSON.stringify(sessions, null, 2)], { type: "application/json" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = "my-study-data.json";
+                  a.click();
+                  
+                  toast({
+                    title: "Data exported",
+                    description: "Your study data has been downloaded",
+                  });
+                }}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Export My Data
+              </Button>
+              <Button 
+                variant="destructive" 
+                className="w-full justify-start"
+                onClick={() => {
+                  toast({
+                    title: "Feature coming soon",
+                    description: "Account deletion will be available in a future update",
+                  });
+                }}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete Account
+              </Button>
+            </div>
+          </TabsContent>
 
           <TabsContent value="ai" className="space-y-4 mt-4">
             <div className="space-y-2">
