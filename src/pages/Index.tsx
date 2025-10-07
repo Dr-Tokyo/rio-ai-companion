@@ -12,7 +12,7 @@ import { StudyTimer } from "@/components/StudyTimer";
 import { FlashcardManager } from "@/components/FlashcardManager";
 import { QuizGenerator } from "@/components/QuizGenerator";
 import { StudyProgress } from "@/components/StudyProgress";
-import { Send, Loader2, Download, LogOut } from "lucide-react";
+import { Send, Loader2, Download, LogOut, HelpCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { messageSchema } from "@/lib/validation";
@@ -302,6 +302,9 @@ const Index = () => {
               <StudyTimer userId={user.id} subject={selectedSubject} />
               <FlashcardManager userId={user.id} subject={selectedSubject} />
               <QuizGenerator userId={user.id} subject={selectedSubject} />
+              <Button variant="outline" size="icon" onClick={() => navigate("/help")} title="Help & Support">
+                <HelpCircle className="w-4 h-4" />
+              </Button>
               <Button variant="outline" size="icon" onClick={exportConversation} title="Export conversation">
                 <Download className="w-4 h-4" />
               </Button>
