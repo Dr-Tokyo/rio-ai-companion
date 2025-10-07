@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { messageSchema } from "@/lib/validation";
 import { useIsIOS } from "@/hooks/use-ios";
+import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import type { User, Session } from "@supabase/supabase-js";
 
 interface Message {
@@ -36,15 +37,13 @@ const Index = () => {
   const [selectedModel, setSelectedModel] = useState("google/gemini-2.5-flash");
   const [isThinking, setIsThinking] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
-  const [isVoiceMode, setIsVoiceMode] = useState(false);
-  const [voiceTranscript, setVoiceTranscript] = useState("");
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const recognitionRef = useRef<any>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const isIOS = useIsIOS();
+  const { isRecording, transcript, startRecording, stopRecording, clearTranscript } = useVoiceRecording();
 
   // Auth check and initialization
   useEffect(() => {
@@ -165,55 +164,16 @@ const Index = () => {
     scrollToBottom();
   }, [messages]);
 
-  // Voice recognition setup
-  useEffect(() => {
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
-      recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = true;
-      recognitionRef.current.interimResults = true;
-
-      recognitionRef.current.onresult = (event: any) => {
-        let interimTranscript = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
-            setInput(prev => prev + ' ' + transcript);
-            setVoiceTranscript(prev => prev + ' ' + transcript);
-          } else {
-            interimTranscript += transcript;
-          }
-        }
-      };
-
-      recognitionRef.current.onerror = (event: any) => {
-        console.error('Speech recognition error:', event.error);
-        setIsVoiceMode(false);
-      };
-    }
-  }, []);
-
-  const toggleVoiceMode = () => {
-    if (!recognitionRef.current) {
+  const handleVoiceToggle = async () => {
+    if (isRecording) {
+      stopRecording();
       toast({
-        title: "Not Supported",
-        description: "Voice input is not supported in this browser",
-        variant: "destructive",
+        title: "Recording Stopped",
+        description: "Processing your audio and capturing notes...",
       });
-      return;
-    }
-
-    if (isVoiceMode) {
-      recognitionRef.current.stop();
-      setIsVoiceMode(false);
     } else {
-      recognitionRef.current.start();
-      setIsVoiceMode(true);
-      setVoiceTranscript("");
-      toast({
-        title: "Voice Mode Active",
-        description: "AI is now capturing notes automatically",
-      });
+      clearTranscript();
+      await startRecording();
     }
   };
 
@@ -483,19 +443,19 @@ const Index = () => {
         <div className="container max-w-6xl mx-auto px-4 py-3 md:py-4">
           <div className="flex gap-2">
             <Button
-              onClick={toggleVoiceMode}
-              variant={isVoiceMode ? "default" : "outline"}
+              onClick={handleVoiceToggle}
+              variant={isRecording ? "default" : "outline"}
               size="icon"
-              className={`shrink-0 ${isVoiceMode ? 'bg-red-500 hover:bg-red-600 animate-pulse' : ''}`}
-              title={isVoiceMode ? "Stop voice input" : "Start voice input"}
+              className={`shrink-0 ${isRecording ? 'bg-red-500 hover:bg-red-600 animate-pulse' : ''}`}
+              title={isRecording ? "Stop recording" : "Start voice recording"}
             >
-              {isVoiceMode ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
             </Button>
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder={isVoiceMode ? "Listening..." : "Ask me anything about your studies..."}
+              placeholder={isRecording ? "Recording... speak now" : "Ask me anything about your studies..."}
               disabled={isLoading}
               className={`flex-1 bg-background/50 border-border focus:border-primary transition-colors ${isIOS ? 'text-lg' : 'text-base'}`}
             />
@@ -513,7 +473,7 @@ const Index = () => {
           </div>
           <p className="text-xs text-muted-foreground text-center mt-2">
             Using: {selectedModel.split("/")[1]}
-            {isVoiceMode && " • Voice Mode Active"}
+            {isRecording && " • Recording & Taking Notes"}
           </p>
         </div>
       </footer>
@@ -521,8 +481,8 @@ const Index = () => {
       <AutoNoteCapture
         userId={user.id}
         subject={selectedSubject}
-        conversationText={voiceTranscript}
-        isActive={isVoiceMode}
+        conversationText={transcript}
+        isActive={isRecording}
       />
     </div>
   );
