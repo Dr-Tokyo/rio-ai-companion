@@ -18,7 +18,7 @@ const Index = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
-      content: "I'm Rio Futaba. I can help you with Science, History, Math, or English. What do you need help with?",
+      content: "I'm Rio Futaba. I can help you with Science, History, Math, English, or Coding/Debugging. What do you need help with?",
     },
   ]);
   const [input, setInput] = useState("");

@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Atom, Clock, Calculator, BookOpen } from "lucide-react";
+import { Atom, Clock, Calculator, BookOpen, Code } from "lucide-react";
 
 interface SubjectSelectorProps {
   selected: string;
@@ -11,6 +11,7 @@ const subjects = [
   { id: "history", label: "History", icon: Clock },
   { id: "math", label: "Math", icon: Calculator },
   { id: "english", label: "English", icon: BookOpen },
+  { id: "coding", label: "Coding", icon: Code },
 ];
 
 export const SubjectSelector = ({ selected, onSelect }: SubjectSelectorProps) => {
