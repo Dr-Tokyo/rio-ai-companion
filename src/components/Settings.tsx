@@ -120,6 +120,10 @@ export const Settings = ({
 
       if (error) {
         console.error("Error loading settings:", error);
+        toast({
+          title: "Note",
+          description: "Using default settings",
+        });
         return;
       }
 
@@ -136,6 +140,10 @@ export const Settings = ({
       }
     } catch (error) {
       console.error("Settings load error:", error);
+      toast({
+        title: "Note",
+        description: "Using default settings",
+      });
     }
   };
 

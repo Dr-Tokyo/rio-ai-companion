@@ -1,0 +1,10 @@
+-- Disable RLS on all tables since we're not using authentication
+ALTER TABLE public.conversations DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.messages DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.flashcards DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.quizzes DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.study_sessions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.study_notes DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.uploaded_files DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.conversation_tags DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_roles DISABLE ROW LEVEL SECURITY;
