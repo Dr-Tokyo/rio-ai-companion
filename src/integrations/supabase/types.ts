@@ -79,6 +79,48 @@ export type Database = {
         }
         Relationships: []
       }
+      flashcards: {
+        Row: {
+          back: string
+          correct_count: number | null
+          created_at: string | null
+          difficulty: string | null
+          front: string
+          id: string
+          last_reviewed: string | null
+          next_review: string | null
+          review_count: number | null
+          subject: string
+          user_id: string
+        }
+        Insert: {
+          back: string
+          correct_count?: number | null
+          created_at?: string | null
+          difficulty?: string | null
+          front: string
+          id?: string
+          last_reviewed?: string | null
+          next_review?: string | null
+          review_count?: number | null
+          subject: string
+          user_id: string
+        }
+        Update: {
+          back?: string
+          correct_count?: number | null
+          created_at?: string | null
+          difficulty?: string | null
+          front?: string
+          id?: string
+          last_reviewed?: string | null
+          next_review?: string | null
+          review_count?: number | null
+          subject?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string
@@ -165,6 +207,108 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
           username?: string | null
+        }
+        Relationships: []
+      }
+      quizzes: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          id: string
+          questions: Json
+          score: number | null
+          subject: string
+          title: string
+          total_questions: number
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          questions: Json
+          score?: number | null
+          subject: string
+          title: string
+          total_questions: number
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          questions?: Json
+          score?: number | null
+          subject?: string
+          title?: string
+          total_questions?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      study_notes: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          subject: string
+          tags: string[] | null
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          subject: string
+          tags?: string[] | null
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          subject?: string
+          tags?: string[] | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      study_sessions: {
+        Row: {
+          created_at: string | null
+          duration_minutes: number
+          ended_at: string | null
+          id: string
+          notes: string | null
+          started_at: string
+          subject: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          duration_minutes?: number
+          ended_at?: string | null
+          id?: string
+          notes?: string | null
+          started_at?: string
+          subject: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          duration_minutes?: number
+          ended_at?: string | null
+          id?: string
+          notes?: string | null
+          started_at?: string
+          subject?: string
+          user_id?: string
         }
         Relationships: []
       }

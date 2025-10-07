@@ -8,7 +8,11 @@ import { Settings } from "@/components/Settings";
 import { ConversationList } from "@/components/ConversationList";
 import { ConversationSearch } from "@/components/ConversationSearch";
 import { KeyboardShortcutsHelp } from "@/components/KeyboardShortcutsHelp";
-import { Send, Loader2, LogOut, Download, Crown, Star, FileText } from "lucide-react";
+import { StudyTimer } from "@/components/StudyTimer";
+import { FlashcardManager } from "@/components/FlashcardManager";
+import { QuizGenerator } from "@/components/QuizGenerator";
+import { StudyProgress } from "@/components/StudyProgress";
+import { Send, Loader2, LogOut, Download, Crown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -322,11 +326,19 @@ const Index = () => {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                Rio Futaba AI Helper
+                Rio Futaba Study Bot
               </h1>
               {isAdmin && <Crown className="w-5 h-5 text-yellow-500" />}
             </div>
             <div className="flex items-center gap-2">
+              {user && (
+                <>
+                  <StudyProgress userId={user.id} />
+                  <StudyTimer userId={user.id} subject={selectedSubject} />
+                  <FlashcardManager userId={user.id} subject={selectedSubject} />
+                  <QuizGenerator userId={user.id} subject={selectedSubject} />
+                </>
+              )}
               <Button variant="outline" size="icon" onClick={exportConversation}>
                 <Download className="w-4 h-4" />
               </Button>
