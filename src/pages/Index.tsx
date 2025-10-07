@@ -5,31 +5,169 @@ import { ChatMessage } from "@/components/ChatMessage";
 import { SubjectSelector } from "@/components/SubjectSelector";
 import { RioCharacter } from "@/components/RioCharacter";
 import { VoiceControls } from "@/components/VoiceControls";
+import { Settings } from "@/components/Settings";
+import { ConversationList } from "@/components/ConversationList";
 import { useVoiceRecorder } from "@/hooks/useVoiceRecorder";
-import { Send, Loader2 } from "lucide-react";
+import { Send, Loader2, LogOut, Upload, Download, Crown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
+import type { User, Session } from "@supabase/supabase-js";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
 }
 
+const ADMIN_EMAIL = "admin@rio.ai";
+const ADMIN_PASSWORD = "admin123";
+
 const Index = () => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "assistant",
-      content: "I'm Rio Futaba. I can help you with Science, History, Math, English, or Coding/Debugging. What do you need help with?",
-    },
-  ]);
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState("science");
+  const [selectedModel, setSelectedModel] = useState("google/gemini-2.5-flash");
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
   const { isRecording, toggleRecording } = useVoiceRecorder();
+
+  // Auto-login admin
+  useEffect(() => {
+    const autoLoginAdmin = async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      
+      if (!sessionData.session) {
+        console.log("No session found, attempting admin auto-login...");
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: ADMIN_EMAIL,
+          password: ADMIN_PASSWORD,
+        });
+
+        if (error) {
+          console.error("Admin auto-login failed:", error);
+          navigate("/auth");
+        } else {
+          console.log("Admin auto-logged in successfully");
+        }
+      }
+    };
+
+    autoLoginAdmin();
+  }, []);
+
+  // Auth state management
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          setTimeout(() => {
+            checkAdminStatus(session.user.id);
+            loadUserPreferences(session.user.id);
+            createInitialConversation(session.user.id);
+          }, 0);
+        }
+      }
+    );
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        checkAdminStatus(session.user.id);
+        loadUserPreferences(session.user.id);
+        createInitialConversation(session.user.id);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const checkAdminStatus = async (userId: string) => {
+    const { data } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("role", "admin")
+      .single();
+
+    setIsAdmin(!!data);
+  };
+
+  const loadUserPreferences = async (userId: string) => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("preferred_model, voice_enabled")
+      .eq("user_id", userId)
+      .single();
+
+    if (data) {
+      if (data.preferred_model) setSelectedModel(data.preferred_model);
+      setVoiceEnabled(data.voice_enabled ?? true);
+    }
+  };
+
+  const createInitialConversation = async (userId: string) => {
+    const { data: existingConvs } = await supabase
+      .from("conversations")
+      .select("id")
+      .eq("user_id", userId)
+      .limit(1);
+
+    if (!existingConvs || existingConvs.length === 0) {
+      const { data: newConv } = await supabase
+        .from("conversations")
+        .insert({
+          user_id: userId,
+          title: "New Conversation",
+          subject: selectedSubject,
+        })
+        .select()
+        .single();
+
+      if (newConv) {
+        setCurrentConversationId(newConv.id);
+        await supabase.from("messages").insert({
+          conversation_id: newConv.id,
+          role: "assistant",
+          content: "I'm Rio Futaba. I can help you with Science, History, Math, English, or Coding/Debugging. What do you need help with?",
+        });
+        
+        setMessages([{
+          role: "assistant",
+          content: "I'm Rio Futaba. I can help you with Science, History, Math, English, or Coding/Debugging. What do you need help with?",
+        }]);
+      }
+    } else {
+      loadConversation(existingConvs[0].id);
+    }
+  };
+
+  const loadConversation = async (conversationId: string) => {
+    setCurrentConversationId(conversationId);
+    
+    const { data } = await supabase
+      .from("messages")
+      .select("role, content")
+      .eq("conversation_id", conversationId)
+      .order("created_at", { ascending: true });
+
+    if (data) {
+      setMessages(data as Message[]);
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -70,7 +208,6 @@ const Index = () => {
       const data = await response.json();
       console.log("Received audio data, creating audio element");
       
-      // Stop any currently playing audio
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
@@ -112,9 +249,8 @@ const Index = () => {
     try {
       const audioData = await toggleRecording();
       
-      if (!audioData) return; // Started recording
+      if (!audioData) return;
 
-      // Transcribe audio
       setIsLoading(true);
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/speech-to-text`,
@@ -150,7 +286,7 @@ const Index = () => {
   };
 
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || !user || !currentConversationId) return;
 
     const userMessage: Message = {
       role: "user",
@@ -160,6 +296,13 @@ const Index = () => {
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
+
+    // Save user message to database
+    await supabase.from("messages").insert({
+      conversation_id: currentConversationId,
+      role: "user",
+      content: input,
+    });
 
     try {
       const response = await fetch(
@@ -175,6 +318,7 @@ const Index = () => {
               ...messages.map((m) => ({ role: m.role, content: m.content })),
               { role: "user", content: `[Subject: ${selectedSubject}] ${input}` },
             ],
+            model: selectedModel,
           }),
         }
       );
@@ -193,7 +337,14 @@ const Index = () => {
 
       setMessages((prev) => [...prev, assistantMessage]);
       
-      // Play audio response
+      // Save assistant message to database
+      await supabase.from("messages").insert({
+        conversation_id: currentConversationId,
+        role: "assistant",
+        content: data.message,
+        has_audio: voiceEnabled,
+      });
+      
       if (voiceEnabled) {
         await playAudio(data.message);
       }
@@ -216,35 +367,95 @@ const Index = () => {
     }
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/auth");
+  };
+
+  const exportConversation = () => {
+    const exportData = {
+      conversation_id: currentConversationId,
+      subject: selectedSubject,
+      model: selectedModel,
+      messages: messages,
+      exported_at: new Date().toISOString(),
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `rio-conversation-${new Date().toISOString()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "Exported",
+      description: "Conversation downloaded as JSON",
+    });
+  };
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-secondary flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-secondary flex flex-col">
-      {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between mb-4">
-            <div>
+            <div className="flex items-center gap-2">
               <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
                 Rio Futaba AI Helper
               </h1>
-              <p className="text-sm text-muted-foreground">
-                Your analytical study companion
-              </p>
+              {isAdmin && <Crown className="w-5 h-5 text-yellow-500" />}
             </div>
-            <VoiceControls
-              isRecording={isRecording}
-              onToggleRecording={handleVoiceInput}
-              voiceEnabled={voiceEnabled}
-              onToggleVoice={() => setVoiceEnabled(!voiceEnabled)}
-              disabled={isLoading}
-            />
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="icon" onClick={exportConversation}>
+                <Download className="w-4 h-4" />
+              </Button>
+              {user && (
+                <ConversationList
+                  userId={user.id}
+                  currentConversationId={currentConversationId}
+                  onSelectConversation={loadConversation}
+                  onNewConversation={() => createInitialConversation(user.id)}
+                />
+              )}
+              <VoiceControls
+                isRecording={isRecording}
+                onToggleRecording={handleVoiceInput}
+                voiceEnabled={voiceEnabled}
+                onToggleVoice={() => setVoiceEnabled(!voiceEnabled)}
+                disabled={isLoading}
+              />
+              {user && (
+                <Settings
+                  userId={user.id}
+                  voiceEnabled={voiceEnabled}
+                  onVoiceEnabledChange={setVoiceEnabled}
+                  selectedModel={selectedModel}
+                  onModelChange={setSelectedModel}
+                  isAdmin={isAdmin}
+                />
+              )}
+              <Button variant="outline" size="icon" onClick={handleLogout}>
+                <LogOut className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
           <SubjectSelector selected={selectedSubject} onSelect={setSelectedSubject} />
         </div>
       </header>
 
-      {/* Main content with animated character */}
       <main className="flex-1 overflow-hidden flex">
-        {/* Character panel - desktop */}
         <div className="hidden md:flex w-1/3 lg:w-1/4 items-center justify-center p-4 border-r border-border bg-gradient-to-b from-card/30 to-transparent">
           <RioCharacter 
             isSpeaking={isSpeaking} 
@@ -253,10 +464,8 @@ const Index = () => {
           />
         </div>
 
-        {/* Messages */}
         <div className="flex-1 overflow-y-auto">
           <div className="container max-w-4xl mx-auto px-4 py-6 space-y-4">
-            {/* Mobile character - shows at top */}
             <div className="md:hidden mb-6 flex justify-center">
               <RioCharacter 
                 isSpeaking={isSpeaking} 
@@ -269,13 +478,13 @@ const Index = () => {
               <ChatMessage key={index} role={message.role} content={message.content} />
             ))}
             {isLoading && (
-              <div className="flex gap-3 p-4 rounded-lg bg-card max-w-[80%] shadow-card">
+              <div className="flex gap-3 p-4 rounded-lg bg-card max-w-[85%] shadow-card">
                 <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-accent flex items-center justify-center">
                   <Loader2 className="w-4 h-4 text-foreground animate-spin" />
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-medium mb-1 text-foreground">Rio Futaba</p>
-                  <p className="text-sm text-muted-foreground">Analyzing your question...</p>
+                  <p className="text-sm text-muted-foreground">Analyzing with {selectedModel.split("/")[1]}...</p>
                 </div>
               </div>
             )}
@@ -284,7 +493,6 @@ const Index = () => {
         </div>
       </main>
 
-      {/* Input */}
       <footer className="border-t border-border bg-card/50 backdrop-blur-sm sticky bottom-0">
         <div className="container max-w-6xl mx-auto px-4 py-4">
           <div className="flex gap-2">
@@ -292,7 +500,7 @@ const Index = () => {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Ask me anything about your studies..."
+              placeholder="Ask me anything about your studies or code..."
               disabled={isLoading || isRecording}
               className="flex-1 bg-background/50 border-border focus:border-primary transition-colors"
             />
@@ -308,6 +516,9 @@ const Index = () => {
               )}
             </Button>
           </div>
+          <p className="text-xs text-muted-foreground text-center mt-2">
+            Using: {selectedModel.split("/")[1]} {isAdmin && "• Admin Mode"}
+          </p>
         </div>
       </footer>
     </div>
