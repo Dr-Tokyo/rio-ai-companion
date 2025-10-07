@@ -97,65 +97,123 @@ export const Settings = ({
   const { toast } = useToast();
 
   useEffect(() => {
-    loadSettings();
+    if (userId) {
+      loadSettings();
+    }
   }, [userId]);
 
   const loadSettings = async () => {
-    const { data } = await supabase
-      .from("profiles")
-      .select(`
-        preferred_model,
-        font_size,
-        high_contrast,
-        dyslexia_font,
-        theme,
-        message_density,
-        show_timestamps,
-        show_character,
-        keyboard_shortcuts
-      `)
-      .eq("user_id", userId)
-      .maybeSingle();
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select(`
+          preferred_model,
+          font_size,
+          high_contrast,
+          dyslexia_font,
+          theme,
+          message_density,
+          show_timestamps,
+          show_character,
+          keyboard_shortcuts
+        `)
+        .eq("user_id", userId)
+        .maybeSingle();
 
-    if (data) {
-      if (data.preferred_model) onModelChange(data.preferred_model);
-      setFontSize(data.font_size || "medium");
-      setHighContrast(data.high_contrast || false);
-      setDyslexiaFont(data.dyslexia_font || false);
-      setTheme(data.theme || "system");
-      setMessageDensity(data.message_density || "comfortable");
-      setShowTimestamps(data.show_timestamps ?? true);
-      setShowCharacter(data.show_character ?? true);
-      setKeyboardShortcuts(data.keyboard_shortcuts ?? true);
+      if (error) {
+        console.error("Error loading settings:", error);
+        return;
+      }
+
+      if (data) {
+        if (data.preferred_model) onModelChange(data.preferred_model);
+        setFontSize(data.font_size || "medium");
+        setHighContrast(data.high_contrast || false);
+        setDyslexiaFont(data.dyslexia_font || false);
+        setTheme(data.theme || "system");
+        setMessageDensity(data.message_density || "comfortable");
+        setShowTimestamps(data.show_timestamps ?? true);
+        setShowCharacter(data.show_character ?? true);
+        setKeyboardShortcuts(data.keyboard_shortcuts ?? true);
+      }
+    } catch (error) {
+      console.error("Settings load error:", error);
     }
   };
 
   const saveSettings = async () => {
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        preferred_model: selectedModel,
-        font_size: fontSize,
-        high_contrast: highContrast,
-        dyslexia_font: dyslexiaFont,
-        theme: theme,
-        message_density: messageDensity,
-        show_timestamps: showTimestamps,
-        show_character: showCharacter,
-        keyboard_shortcuts: keyboardShortcuts,
-      })
-      .eq("user_id", userId);
+    try {
+      // First check if profile exists
+      const { data: existingProfile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("user_id", userId)
+        .maybeSingle();
 
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to save settings",
-        variant: "destructive",
-      });
-    } else {
+      if (!existingProfile) {
+        // Create profile if it doesn't exist
+        const { error: insertError } = await supabase
+          .from("profiles")
+          .insert({
+            user_id: userId,
+            preferred_model: selectedModel,
+            font_size: fontSize,
+            high_contrast: highContrast,
+            dyslexia_font: dyslexiaFont,
+            theme: theme,
+            message_density: messageDensity,
+            show_timestamps: showTimestamps,
+            show_character: showCharacter,
+            keyboard_shortcuts: keyboardShortcuts,
+          });
+
+        if (insertError) {
+          console.error("Insert error:", insertError);
+          toast({
+            title: "Error",
+            description: "Failed to create profile: " + insertError.message,
+            variant: "destructive",
+          });
+          return;
+        }
+      } else {
+        // Update existing profile
+        const { error: updateError } = await supabase
+          .from("profiles")
+          .update({
+            preferred_model: selectedModel,
+            font_size: fontSize,
+            high_contrast: highContrast,
+            dyslexia_font: dyslexiaFont,
+            theme: theme,
+            message_density: messageDensity,
+            show_timestamps: showTimestamps,
+            show_character: showCharacter,
+            keyboard_shortcuts: keyboardShortcuts,
+          })
+          .eq("user_id", userId);
+
+        if (updateError) {
+          console.error("Update error:", updateError);
+          toast({
+            title: "Error",
+            description: "Failed to save settings: " + updateError.message,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
       toast({
         title: "Settings saved",
         description: "Your preferences have been updated",
+      });
+    } catch (error) {
+      console.error("Save settings error:", error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
       });
     }
   };

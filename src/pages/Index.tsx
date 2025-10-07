@@ -41,23 +41,37 @@ const Index = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Auto-login admin
+  // Auto-login admin on mount
   useEffect(() => {
     const autoLoginAdmin = async () => {
+      // Check if already logged in
       const { data: sessionData } = await supabase.auth.getSession();
       
       if (!sessionData.session) {
         console.log("No session found, attempting admin auto-login...");
-        const { data, error } = await supabase.auth.signInWithPassword({
+        const { error } = await supabase.auth.signInWithPassword({
           email: ADMIN_EMAIL,
           password: ADMIN_PASSWORD,
         });
 
         if (error) {
           console.error("Admin auto-login failed:", error);
-          navigate("/auth");
-        } else {
-          console.log("Admin auto-logged in successfully");
+          // Try to create admin account if it doesn't exist
+          const { error: signUpError } = await supabase.auth.signUp({
+            email: ADMIN_EMAIL,
+            password: ADMIN_PASSWORD,
+            options: {
+              emailRedirectTo: window.location.origin,
+            }
+          });
+          
+          if (!signUpError) {
+            // Try logging in again
+            await supabase.auth.signInWithPassword({
+              email: ADMIN_EMAIL,
+              password: ADMIN_PASSWORD,
+            });
+          }
         }
       }
     };
@@ -282,7 +296,11 @@ const Index = () => {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    navigate("/auth");
+    // Immediately log back in as admin
+    await supabase.auth.signInWithPassword({
+      email: ADMIN_EMAIL,
+      password: ADMIN_PASSWORD,
+    });
   };
 
   const exportConversation = () => {
@@ -339,7 +357,7 @@ const Index = () => {
                   <QuizGenerator userId={user.id} subject={selectedSubject} />
                 </>
               )}
-              <Button variant="outline" size="icon" onClick={exportConversation}>
+              <Button variant="outline" size="icon" onClick={exportConversation} title="Export conversation">
                 <Download className="w-4 h-4" />
               </Button>
               {user && (
@@ -364,9 +382,6 @@ const Index = () => {
                   isAdmin={isAdmin}
                 />
               )}
-              <Button variant="outline" size="icon" onClick={handleLogout}>
-                <LogOut className="w-4 h-4" />
-              </Button>
             </div>
           </div>
           <div className="flex items-center gap-2">
