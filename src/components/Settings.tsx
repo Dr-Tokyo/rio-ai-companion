@@ -23,8 +23,6 @@ import { useToast } from "@/hooks/use-toast";
 
 interface SettingsProps {
   userId: string;
-  voiceEnabled: boolean;
-  onVoiceEnabledChange: (enabled: boolean) => void;
   selectedModel: string;
   onModelChange: (model: string) => void;
   isAdmin: boolean;
@@ -67,26 +65,26 @@ const AI_MODELS = [
     description: "Fast and efficient GPT",
     free: false
   },
-];
-
-const VOICE_OPTIONS = [
-  { value: "alloy", name: "Alloy" },
-  { value: "echo", name: "Echo" },
-  { value: "fable", name: "Fable" },
-  { value: "onyx", name: "Onyx" },
-  { value: "nova", name: "Nova" },
-  { value: "shimmer", name: "Shimmer (Default)" },
+  { 
+    id: "claude-sonnet-4-20250514", 
+    name: "Claude Sonnet 4", 
+    description: "High-performance with exceptional reasoning",
+    free: false
+  },
+  { 
+    id: "qwen-3.5", 
+    name: "Qwen 3.5", 
+    description: "Alibaba's advanced reasoning model",
+    free: false
+  },
 ];
 
 export const Settings = ({ 
   userId, 
-  voiceEnabled, 
-  onVoiceEnabledChange,
   selectedModel,
   onModelChange,
   isAdmin
 }: SettingsProps) => {
-  const [preferredVoice, setPreferredVoice] = useState("shimmer");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -96,16 +94,12 @@ export const Settings = ({
   const loadSettings = async () => {
     const { data } = await supabase
       .from("profiles")
-      .select("voice_enabled, preferred_voice, preferred_model")
+      .select("preferred_model")
       .eq("user_id", userId)
       .single();
 
-    if (data) {
-      onVoiceEnabledChange(data.voice_enabled ?? true);
-      setPreferredVoice(data.preferred_voice || "shimmer");
-      if (data.preferred_model) {
-        onModelChange(data.preferred_model);
-      }
+    if (data?.preferred_model) {
+      onModelChange(data.preferred_model);
     }
   };
 
@@ -113,8 +107,6 @@ export const Settings = ({
     const { error } = await supabase
       .from("profiles")
       .update({
-        voice_enabled: voiceEnabled,
-        preferred_voice: preferredVoice,
         preferred_model: selectedModel,
       })
       .eq("user_id", userId);
@@ -179,31 +171,6 @@ export const Settings = ({
             <p className="text-xs text-muted-foreground">
               {AI_MODELS.find(m => m.id === selectedModel)?.description}
             </p>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <Label htmlFor="voice-enabled">Voice Responses</Label>
-            <Switch
-              id="voice-enabled"
-              checked={voiceEnabled}
-              onCheckedChange={onVoiceEnabledChange}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Voice Model</Label>
-            <Select value={preferredVoice} onValueChange={setPreferredVoice}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {VOICE_OPTIONS.map((voice) => (
-                  <SelectItem key={voice.value} value={voice.value}>
-                    {voice.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
 
           <Button onClick={saveSettings} className="w-full bg-gradient-primary">

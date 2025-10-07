@@ -4,11 +4,9 @@ import { Input } from "@/components/ui/input";
 import { ChatMessage } from "@/components/ChatMessage";
 import { SubjectSelector } from "@/components/SubjectSelector";
 import { RioCharacter } from "@/components/RioCharacter";
-import { VoiceControls } from "@/components/VoiceControls";
 import { Settings } from "@/components/Settings";
 import { ConversationList } from "@/components/ConversationList";
-import { useVoiceRecorder } from "@/hooks/useVoiceRecorder";
-import { Send, Loader2, LogOut, Upload, Download, Crown } from "lucide-react";
+import { Send, Loader2, LogOut, Download, Crown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -31,14 +29,11 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState("science");
   const [selectedModel, setSelectedModel] = useState("google/gemini-2.5-flash");
-  const [voiceEnabled, setVoiceEnabled] = useState(true);
-  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { isRecording, toggleRecording } = useVoiceRecorder();
 
   // Auto-login admin
   useEffect(() => {
@@ -109,13 +104,12 @@ const Index = () => {
   const loadUserPreferences = async (userId: string) => {
     const { data } = await supabase
       .from("profiles")
-      .select("preferred_model, voice_enabled")
+      .select("preferred_model")
       .eq("user_id", userId)
       .single();
 
-    if (data) {
-      if (data.preferred_model) setSelectedModel(data.preferred_model);
-      setVoiceEnabled(data.voice_enabled ?? true);
+    if (data?.preferred_model) {
+      setSelectedModel(data.preferred_model);
     }
   };
 
@@ -177,113 +171,7 @@ const Index = () => {
     scrollToBottom();
   }, [messages]);
 
-  const playAudio = async (text: string) => {
-    if (!voiceEnabled) {
-      console.log("Voice disabled, skipping audio");
-      return;
-    }
 
-    try {
-      console.log("Starting audio playback for text:", text.substring(0, 50));
-      setIsSpeaking(true);
-      
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/text-to-speech`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({ text }),
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("TTS response error:", errorData);
-        throw new Error(errorData.error || "TTS failed");
-      }
-
-      const data = await response.json();
-      console.log("Received audio data, creating audio element");
-      
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-
-      const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`);
-      audioRef.current = audio;
-      
-      audio.onended = () => {
-        console.log("Audio playback ended");
-        setIsSpeaking(false);
-      };
-      
-      audio.onerror = (e) => {
-        console.error("Audio element error:", e);
-        setIsSpeaking(false);
-        toast({
-          title: "Audio Error",
-          description: "Failed to play audio. Check console for details.",
-          variant: "destructive",
-        });
-      };
-      
-      console.log("Starting audio playback");
-      await audio.play();
-      console.log("Audio playing successfully");
-    } catch (error) {
-      console.error("Audio playback error:", error);
-      setIsSpeaking(false);
-      toast({
-        title: "Audio Error",
-        description: error instanceof Error ? error.message : "Failed to play audio",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleVoiceInput = async () => {
-    try {
-      const audioData = await toggleRecording();
-      
-      if (!audioData) return;
-
-      setIsLoading(true);
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/speech-to-text`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({ audio: audioData }),
-        }
-      );
-
-      if (!response.ok) throw new Error("Transcription failed");
-
-      const data = await response.json();
-      setInput(data.text);
-      setIsLoading(false);
-
-      toast({
-        title: "Transcribed",
-        description: "Your voice message has been converted to text.",
-      });
-    } catch (error) {
-      console.error("Voice input error:", error);
-      setIsLoading(false);
-      toast({
-        title: "Error",
-        description: "Failed to process voice input",
-        variant: "destructive",
-      });
-    }
-  };
 
   const handleSend = async () => {
     if (!input.trim() || isLoading || !user || !currentConversationId) return;
@@ -296,6 +184,8 @@ const Index = () => {
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
+
+    setIsThinking(true);
 
     // Save user message to database
     await supabase.from("messages").insert({
@@ -342,12 +232,7 @@ const Index = () => {
         conversation_id: currentConversationId,
         role: "assistant",
         content: data.message,
-        has_audio: voiceEnabled,
       });
-      
-      if (voiceEnabled) {
-        await playAudio(data.message);
-      }
     } catch (error) {
       console.error("Error:", error);
       toast({
@@ -357,6 +242,7 @@ const Index = () => {
       });
     } finally {
       setIsLoading(false);
+      setIsThinking(false);
     }
   };
 
@@ -429,18 +315,9 @@ const Index = () => {
                   onNewConversation={() => createInitialConversation(user.id)}
                 />
               )}
-              <VoiceControls
-                isRecording={isRecording}
-                onToggleRecording={handleVoiceInput}
-                voiceEnabled={voiceEnabled}
-                onToggleVoice={() => setVoiceEnabled(!voiceEnabled)}
-                disabled={isLoading}
-              />
               {user && (
                 <Settings
                   userId={user.id}
-                  voiceEnabled={voiceEnabled}
-                  onVoiceEnabledChange={setVoiceEnabled}
                   selectedModel={selectedModel}
                   onModelChange={setSelectedModel}
                   isAdmin={isAdmin}
@@ -458,8 +335,8 @@ const Index = () => {
       <main className="flex-1 overflow-hidden flex">
         <div className="hidden md:flex w-1/3 lg:w-1/4 items-center justify-center p-4 border-r border-border bg-gradient-to-b from-card/30 to-transparent">
           <RioCharacter 
-            isSpeaking={isSpeaking} 
-            isThinking={isLoading}
+            isSpeaking={false} 
+            isThinking={isThinking}
             className="w-full max-w-sm rio-character-container" 
           />
         </div>
@@ -468,8 +345,8 @@ const Index = () => {
           <div className="container max-w-4xl mx-auto px-4 py-6 space-y-4">
             <div className="md:hidden mb-6 flex justify-center">
               <RioCharacter 
-                isSpeaking={isSpeaking} 
-                isThinking={isLoading}
+                isSpeaking={false} 
+                isThinking={isThinking}
                 className="w-64 rio-character-container" 
               />
             </div>
@@ -501,12 +378,12 @@ const Index = () => {
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="Ask me anything about your studies or code..."
-              disabled={isLoading || isRecording}
+              disabled={isLoading}
               className="flex-1 bg-background/50 border-border focus:border-primary transition-colors"
             />
             <Button
               onClick={handleSend}
-              disabled={isLoading || !input.trim() || isRecording}
+              disabled={isLoading || !input.trim()}
               className="bg-gradient-primary hover:shadow-glow transition-all duration-300"
             >
               {isLoading ? (

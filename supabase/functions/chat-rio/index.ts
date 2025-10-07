@@ -37,6 +37,83 @@ Code formatting:
 
 Keep responses concise but thorough. Don't over-explain unless asked for more detail.`;
 
+// Helper function to call different AI providers
+async function callAIModel(model: string, messages: any[], apiKeys: { lovable?: string, anthropic?: string, qwen?: string }) {
+  // Lovable AI models (Gemini & GPT)
+  if (model.startsWith('google/') || model.startsWith('openai/')) {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKeys.lovable}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ model, messages }),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Lovable AI gateway error:", response.status, errorText);
+      throw new Error("Lovable AI gateway error");
+    }
+    
+    const data = await response.json();
+    return data.choices[0].message.content;
+  }
+  
+  // Anthropic Claude
+  if (model.startsWith('claude-')) {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": apiKeys.anthropic || "",
+        "anthropic-version": "2023-06-01",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: model,
+        max_tokens: 4096,
+        messages: messages.filter((m: any) => m.role !== 'system'),
+        system: messages.find((m: any) => m.role === 'system')?.content || RIO_PERSONALITY,
+      }),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Anthropic API error:", response.status, errorText);
+      throw new Error("Anthropic API error");
+    }
+    
+    const data = await response.json();
+    return data.content[0].text;
+  }
+  
+  // Qwen AI
+  if (model.startsWith('qwen-')) {
+    const response = await fetch("https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKeys.qwen}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: model === 'qwen-3.5' ? 'qwen-plus' : model,
+        messages: messages,
+      }),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Qwen API error:", response.status, errorText);
+      throw new Error("Qwen API error");
+    }
+    
+    const data = await response.json();
+    return data.choices[0].message.content;
+  }
+  
+  throw new Error(`Unsupported model: ${model}`);
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -45,58 +122,25 @@ serve(async (req) => {
   try {
     const { messages, model = "google/gemini-2.5-flash" } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    const QWEN_API_KEY = Deno.env.get("QWEN_API_KEY");
 
     console.log("Using model:", model);
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: RIO_PERSONALITY },
-          ...messages,
-        ],
-      }),
+    const fullMessages = [
+      { role: "system", content: RIO_PERSONALITY },
+      ...messages,
+    ];
+
+    const responseText = await callAIModel(model, fullMessages, {
+      lovable: LOVABLE_API_KEY,
+      anthropic: ANTHROPIC_API_KEY,
+      qwen: QWEN_API_KEY,
     });
-
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }),
-          {
-            status: 429,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "AI credits depleted. Please add more credits to your workspace." }),
-          {
-            status: 402,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
-      }
-      
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      throw new Error("AI gateway error");
-    }
-
-    const data = await response.json();
     
     return new Response(
       JSON.stringify({ 
-        message: data.choices[0].message.content,
+        message: responseText,
         model: model 
       }),
       {

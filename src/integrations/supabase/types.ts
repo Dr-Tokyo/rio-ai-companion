@@ -46,7 +46,6 @@ export type Database = {
           content: string
           conversation_id: string
           created_at: string | null
-          has_audio: boolean | null
           id: string
           role: string
         }
@@ -54,7 +53,6 @@ export type Database = {
           content: string
           conversation_id: string
           created_at?: string | null
-          has_audio?: boolean | null
           id?: string
           role: string
         }
@@ -62,7 +60,6 @@ export type Database = {
           content?: string
           conversation_id?: string
           created_at?: string | null
-          has_audio?: boolean | null
           id?: string
           role?: string
         }
@@ -82,33 +79,27 @@ export type Database = {
           created_at: string | null
           id: string
           preferred_model: string | null
-          preferred_voice: string | null
           updated_at: string | null
           user_id: string
           username: string | null
-          voice_enabled: boolean | null
         }
         Insert: {
           avatar_url?: string | null
           created_at?: string | null
           id?: string
           preferred_model?: string | null
-          preferred_voice?: string | null
           updated_at?: string | null
           user_id: string
           username?: string | null
-          voice_enabled?: boolean | null
         }
         Update: {
           avatar_url?: string | null
           created_at?: string | null
           id?: string
           preferred_model?: string | null
-          preferred_voice?: string | null
           updated_at?: string | null
           user_id?: string
           username?: string | null
-          voice_enabled?: boolean | null
         }
         Relationships: []
       }
