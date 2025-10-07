@@ -6,7 +6,7 @@ import { ChatMessage } from "@/components/ChatMessage";
 import { SubjectSelector } from "@/components/SubjectSelector";
 import { FeaturesPanel } from "@/components/FeaturesPanel";
 import { AutoNoteCapture } from "@/components/AutoNoteCapture";
-import { Send, Loader2, Mic, MicOff } from "lucide-react";
+import { Send, Loader2, Mic, MicOff, Image as ImageIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { messageSchema } from "@/lib/validation";
@@ -17,6 +17,7 @@ import type { User, Session } from "@supabase/supabase-js";
 interface Message {
   role: "user" | "assistant";
   content: string;
+  imageUrl?: string;
 }
 
 const Index = () => {
@@ -31,7 +32,9 @@ const Index = () => {
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const isIOS = useIsIOS();
@@ -227,8 +230,32 @@ const Index = () => {
 
 
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid File",
+        description: "Please upload an image file",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setUploadedImage(reader.result as string);
+      toast({
+        title: "Image Uploaded",
+        description: "Image ready to analyze. Type a question or click send to detect problems.",
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSend = async () => {
-    if (!input.trim() || isLoading || !currentConversationId || !user) return;
+    if ((!input.trim() && !uploadedImage) || isLoading || !currentConversationId || !user) return;
 
     // Validate input
     try {
@@ -242,11 +269,17 @@ const Index = () => {
       return;
     }
 
-    const userMessage: Message = { role: "user", content: input };
-    const messageText = input;
+    const messageText = input || "Please analyze this image and solve any problems you can detect.";
+    const userMessage: Message = { 
+      role: "user", 
+      content: messageText,
+      imageUrl: uploadedImage || undefined
+    };
 
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
+    const currentImage = uploadedImage;
+    setUploadedImage(null);
     setIsLoading(true);
     setIsThinking(true);
 
@@ -267,6 +300,14 @@ const Index = () => {
       .eq("id", currentConversationId);
 
     try {
+      // Build message content with image if present
+      const userContent = currentImage 
+        ? [
+            { type: "text", text: `[Subject: ${selectedSubject}] ${messageText}` },
+            { type: "image_url", image_url: { url: currentImage } }
+          ]
+        : `[Subject: ${selectedSubject}] ${messageText}`;
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-rio`,
         {
@@ -277,8 +318,16 @@ const Index = () => {
           },
           body: JSON.stringify({
             messages: [
-              ...messages.map((m) => ({ role: m.role, content: m.content })),
-              { role: "user", content: `[Subject: ${selectedSubject}] ${input}` },
+              ...messages.map((m) => ({ 
+                role: m.role, 
+                content: m.imageUrl 
+                  ? [
+                      { type: "text", text: m.content },
+                      { type: "image_url", image_url: { url: m.imageUrl } }
+                    ]
+                  : m.content 
+              })),
+              { role: "user", content: userContent },
             ],
             model: selectedModel,
           }),
@@ -394,6 +443,7 @@ const Index = () => {
               key={index} 
               role={message.role} 
               content={message.content}
+              imageUrl={message.imageUrl}
               onSpeak={message.role === 'assistant' ? () => handleTextToSpeech(message.content) : undefined}
               isSpeaking={isSpeaking}
             />
@@ -425,17 +475,39 @@ const Index = () => {
             >
               {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
             </Button>
+            <Button
+              onClick={() => fileInputRef.current?.click()}
+              variant="outline"
+              size="icon"
+              className={`shrink-0 ${uploadedImage ? 'border-primary bg-primary/10' : ''}`}
+              title="Upload image to analyze"
+            >
+              <ImageIcon className="w-4 h-4" />
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              className="hidden"
+            />
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder={isRecording ? "Recording... speak now" : "Ask me anything about your studies..."}
+              placeholder={
+                uploadedImage 
+                  ? "Ask about the image or just click send..." 
+                  : isRecording 
+                    ? "Recording... speak now" 
+                    : "Ask me anything about your studies..."
+              }
               disabled={isLoading}
               className={`flex-1 bg-background/50 border-border focus:border-primary transition-colors ${isIOS ? 'text-lg' : 'text-base'}`}
             />
             <Button
               onClick={handleSend}
-              disabled={isLoading || !input.trim()}
+              disabled={isLoading || (!input.trim() && !uploadedImage)}
               className="bg-gradient-primary hover:shadow-glow transition-all duration-300 shrink-0"
             >
               {isLoading ? (
@@ -445,6 +517,17 @@ const Index = () => {
               )}
             </Button>
           </div>
+          {uploadedImage && (
+            <div className="mt-2 relative inline-block">
+              <img src={uploadedImage} alt="Upload preview" className="h-20 rounded border border-border" />
+              <button
+                onClick={() => setUploadedImage(null)}
+                className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs"
+              >
+                ×
+              </button>
+            </div>
+          )}
           <p className="text-xs text-muted-foreground text-center mt-2">
             Using: {selectedModel.split("/")[1]}
             {isRecording && " • Recording & Taking Notes"}

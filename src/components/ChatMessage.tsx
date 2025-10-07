@@ -9,11 +9,12 @@ import { useState } from "react";
 interface ChatMessageProps {
   role: "user" | "assistant";
   content: string;
+  imageUrl?: string;
   onSpeak?: () => void;
   isSpeaking?: boolean;
 }
 
-export const ChatMessage = ({ role, content, onSpeak, isSpeaking }: ChatMessageProps) => {
+export const ChatMessage = ({ role, content, imageUrl, onSpeak, isSpeaking }: ChatMessageProps) => {
   const isUser = role === "user";
   const { toast } = useToast();
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
@@ -152,6 +153,9 @@ export const ChatMessage = ({ role, content, onSpeak, isSpeaking }: ChatMessageP
             </Button>
           )}
         </div>
+        {imageUrl && (
+          <img src={imageUrl} alt="Uploaded" className="max-w-xs rounded border border-border my-2" />
+        )}
         <div className="text-sm text-foreground/90">
           {renderContent()}
         </div>
