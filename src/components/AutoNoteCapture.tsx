@@ -20,6 +20,8 @@ export const AutoNoteCapture = ({ userId, subject, conversationText, isActive }:
     const captureNotes = async () => {
       setIsProcessing(true);
       try {
+        console.log('Starting note capture for:', conversationText.slice(0, 100));
+        
         // Call AI to extract key points from conversation
         const response = await fetch(
           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-rio`,
@@ -33,7 +35,7 @@ export const AutoNoteCapture = ({ userId, subject, conversationText, isActive }:
               messages: [
                 {
                   role: "user",
-                  content: `Extract key study notes from this conversation. Format as concise bullet points. Conversation: ${conversationText}`,
+                  content: `Extract key study notes from this conversation. Format as clear, organized bullet points with main topics and subtopics. Focus on important concepts, definitions, and explanations. Conversation: ${conversationText}`,
                 },
               ],
               model: "google/gemini-2.5-flash",
@@ -41,27 +43,44 @@ export const AutoNoteCapture = ({ userId, subject, conversationText, isActive }:
           }
         );
 
-        if (!response.ok) throw new Error("Failed to generate notes");
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('AI response error:', errorText);
+          throw new Error("Failed to generate notes");
+        }
 
         const data = await response.json();
+        console.log('AI generated notes:', data.message?.slice(0, 100));
         
-        // Save auto-generated note
-        const { error } = await supabase.from("notes").insert({
+        if (!data.message) {
+          throw new Error("No notes generated from AI");
+        }
+        
+        // Save auto-generated note to the notes table
+        const { error: insertError } = await supabase.from("notes").insert({
           user_id: userId,
-          title: `Auto-captured Notes: ${subject} - ${new Date().toLocaleDateString()}`,
+          title: `Auto-Notes: ${subject} - ${new Date().toLocaleDateString()}`,
           content: data.message,
           subject: subject,
-          tags: ["auto-generated", subject],
+          tags: ["auto-generated", subject, "voice-notes"],
         });
 
-        if (error) throw error;
+        if (insertError) {
+          console.error('Database insert error:', insertError);
+          throw insertError;
+        }
 
         toast({
-          title: "Notes Captured",
-          description: "AI automatically saved study notes from your conversation",
+          title: "Notes Saved",
+          description: "AI automatically captured and saved your study notes",
         });
       } catch (error) {
         console.error("Auto-note capture error:", error);
+        toast({
+          title: "Note Capture Failed",
+          description: error instanceof Error ? error.message : "Failed to capture notes",
+          variant: "destructive",
+        });
       } finally {
         setIsProcessing(false);
       }
@@ -75,10 +94,10 @@ export const AutoNoteCapture = ({ userId, subject, conversationText, isActive }:
   if (!isActive || !isProcessing) return null;
 
   return (
-    <div className="fixed bottom-20 right-4 bg-card/90 backdrop-blur-sm border border-border rounded-lg px-4 py-2 shadow-glow flex items-center gap-2 text-sm">
+    <div className="fixed bottom-20 right-4 bg-card/90 backdrop-blur-sm border border-border rounded-lg px-4 py-2 shadow-lg flex items-center gap-2 text-sm animate-in fade-in slide-in-from-bottom-2">
       <Loader2 className="w-4 h-4 animate-spin text-primary" />
       <BookOpen className="w-4 h-4 text-primary" />
-      <span className="text-muted-foreground">AI capturing notes...</span>
+      <span className="text-muted-foreground">AI capturing notes to Notes tab...</span>
     </div>
   );
 };
