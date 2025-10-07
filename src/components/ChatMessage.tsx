@@ -1,7 +1,10 @@
 import { cn } from "@/lib/utils";
-import { User, Bot } from "lucide-react";
+import { User, Bot, Copy, Check } from "lucide-react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 interface ChatMessageProps {
   role: "user" | "assistant";
@@ -10,6 +13,26 @@ interface ChatMessageProps {
 
 export const ChatMessage = ({ role, content }: ChatMessageProps) => {
   const isUser = role === "user";
+  const { toast } = useToast();
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+
+  const copyToClipboard = async (code: string, index: number) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopiedIndex(index);
+      toast({
+        title: "Copied!",
+        description: "Code copied to clipboard",
+      });
+      setTimeout(() => setCopiedIndex(null), 2000);
+    } catch (err) {
+      toast({
+        title: "Failed to copy",
+        description: "Please try again",
+        variant: "destructive",
+      });
+    }
+  };
   
   // Parse content for code blocks
   const renderContent = () => {
@@ -33,10 +56,29 @@ export const ChatMessage = ({ role, content }: ChatMessageProps) => {
       // Add code block
       const language = match[1] || "javascript";
       const code = match[2];
+      const codeBlockIndex = key;
       parts.push(
-        <div key={`code-${key++}`} className="my-2 rounded-lg overflow-hidden">
-          <div className="bg-muted px-3 py-1 text-xs text-muted-foreground border-b border-border">
-            {language}
+        <div key={`code-${key++}`} className="my-2 rounded-lg overflow-hidden border border-border relative group">
+          <div className="bg-muted px-3 py-1.5 text-xs text-muted-foreground border-b border-border flex items-center justify-between">
+            <span className="font-medium">{language}</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={() => copyToClipboard(code, codeBlockIndex)}
+            >
+              {copiedIndex === codeBlockIndex ? (
+                <>
+                  <Check className="w-3 h-3 mr-1" />
+                  Copied
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3 h-3 mr-1" />
+                  Copy
+                </>
+              )}
+            </Button>
           </div>
           <SyntaxHighlighter
             language={language}
