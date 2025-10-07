@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChatMessage } from "@/components/ChatMessage";
@@ -11,19 +12,20 @@ import { StudyTimer } from "@/components/StudyTimer";
 import { FlashcardManager } from "@/components/FlashcardManager";
 import { QuizGenerator } from "@/components/QuizGenerator";
 import { StudyProgress } from "@/components/StudyProgress";
-import { Send, Loader2, Download } from "lucide-react";
+import { Send, Loader2, Download, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { messageSchema } from "@/lib/validation";
+import type { User, Session } from "@supabase/supabase-js";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
 }
 
-// Fixed user ID for all operations (no auth required)
-const FIXED_USER_ID = "00000000-0000-0000-0000-000000000001";
-
 const Index = () => {
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -32,19 +34,48 @@ const Index = () => {
   const [isThinking, setIsThinking] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Initialize on mount
+  // Auth check and initialization
   useEffect(() => {
-    loadUserPreferences();
-    createInitialConversation();
-  }, []);
+    // Set up auth listener first
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      
+      if (!session) {
+        navigate("/auth");
+      } else {
+        // Defer Supabase calls with setTimeout to avoid deadlock
+        setTimeout(() => {
+          loadUserPreferences(session.user.id);
+          createInitialConversation(session.user.id);
+        }, 0);
+      }
+    });
 
-  const loadUserPreferences = async () => {
+    // Then check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      
+      if (!session) {
+        navigate("/auth");
+      } else {
+        loadUserPreferences(session.user.id);
+        createInitialConversation(session.user.id);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  const loadUserPreferences = async (userId: string) => {
     const { data } = await supabase
       .from("profiles")
       .select("preferred_model")
-      .eq("user_id", FIXED_USER_ID)
+      .eq("user_id", userId)
       .maybeSingle();
 
     if (data?.preferred_model) {
@@ -52,11 +83,11 @@ const Index = () => {
     }
   };
 
-  const createInitialConversation = async () => {
+  const createInitialConversation = async (userId: string) => {
     const { data: existingConvs } = await supabase
       .from("conversations")
       .select("id")
-      .eq("user_id", FIXED_USER_ID)
+      .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(1);
 
@@ -64,7 +95,7 @@ const Index = () => {
       const { data: newConv } = await supabase
         .from("conversations")
         .insert({
-          user_id: FIXED_USER_ID,
+          user_id: userId,
           title: "New Conversation",
           subject: "physics",
         })
@@ -128,7 +159,19 @@ const Index = () => {
 
 
   const handleSend = async () => {
-    if (!input.trim() || isLoading || !currentConversationId) return;
+    if (!input.trim() || isLoading || !currentConversationId || !user) return;
+
+    // Validate input
+    try {
+      messageSchema.parse(input);
+    } catch (error: any) {
+      toast({
+        title: "Invalid Message",
+        description: error.errors?.[0]?.message || "Message validation failed",
+        variant: "destructive",
+      });
+      return;
+    }
 
     const userMessage: Message = { role: "user", content: input };
     const messageText = input;
@@ -194,7 +237,6 @@ const Index = () => {
         content: data.message,
       });
     } catch (error) {
-      console.error("Error:", error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to send message",
@@ -204,6 +246,11 @@ const Index = () => {
       setIsLoading(false);
       setIsThinking(false);
     }
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    navigate("/auth");
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -236,6 +283,10 @@ const Index = () => {
     });
   };
 
+  if (!user) {
+    return null; // Will redirect to auth
+  }
+
   return (
     <div className="min-h-screen bg-gradient-secondary flex flex-col">
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
@@ -247,28 +298,31 @@ const Index = () => {
               </h1>
             </div>
             <div className="flex items-center gap-1 md:gap-2 flex-wrap">
-              <StudyProgress userId={FIXED_USER_ID} />
-              <StudyTimer userId={FIXED_USER_ID} subject={selectedSubject} />
-              <FlashcardManager userId={FIXED_USER_ID} subject={selectedSubject} />
-              <QuizGenerator userId={FIXED_USER_ID} subject={selectedSubject} />
+              <StudyProgress userId={user.id} />
+              <StudyTimer userId={user.id} subject={selectedSubject} />
+              <FlashcardManager userId={user.id} subject={selectedSubject} />
+              <QuizGenerator userId={user.id} subject={selectedSubject} />
               <Button variant="outline" size="icon" onClick={exportConversation} title="Export conversation">
                 <Download className="w-4 h-4" />
               </Button>
               <ConversationSearch
-                userId={FIXED_USER_ID}
+                userId={user.id}
                 onSelectConversation={loadConversation}
               />
               <ConversationList
-                userId={FIXED_USER_ID}
+                userId={user.id}
                 currentConversationId={currentConversationId}
                 onSelectConversation={loadConversation}
-                onNewConversation={createInitialConversation}
+                onNewConversation={() => createInitialConversation(user.id)}
               />
               <Settings
-                userId={FIXED_USER_ID}
+                userId={user.id}
                 selectedModel={selectedModel}
                 onModelChange={setSelectedModel}
               />
+              <Button variant="outline" size="icon" onClick={handleSignOut} title="Sign out">
+                <LogOut className="w-4 h-4" />
+              </Button>
             </div>
           </div>
           <div className="flex items-center gap-2">

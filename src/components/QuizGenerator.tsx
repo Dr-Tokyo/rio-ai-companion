@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { GraduationCap, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { quizTopicSchema } from "@/lib/validation";
 
 interface Question {
   question: string;
@@ -37,7 +38,17 @@ export const QuizGenerator = ({ userId, subject }: QuizGeneratorProps) => {
   const { toast } = useToast();
 
   const generateQuiz = async () => {
-    if (!topic.trim()) return;
+    // Validate topic
+    try {
+      quizTopicSchema.parse(topic);
+    } catch (error: any) {
+      toast({
+        title: "Validation Error",
+        description: error.errors?.[0]?.message || "Invalid topic",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsGenerating(true);
     try {
@@ -144,6 +155,7 @@ export const QuizGenerator = ({ userId, subject }: QuizGeneratorProps) => {
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
                 placeholder={`e.g., Newton's Laws, Photosynthesis, World War II...`}
+                maxLength={200}
               />
             </div>
 

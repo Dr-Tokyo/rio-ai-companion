@@ -14,6 +14,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { BookMarked, Plus, Trash2, RotateCcw, ChevronRight, ChevronLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { flashcardSchema } from "@/lib/validation";
 
 interface Flashcard {
   id: string;
@@ -55,15 +56,29 @@ export const FlashcardManager = ({ userId, subject }: FlashcardManagerProps) => 
   };
 
   const createFlashcard = async () => {
-    if (!newFront.trim() || !newBack.trim()) return;
+    // Validate input
+    try {
+      flashcardSchema.parse({
+        front: newFront,
+        back: newBack,
+        subject: subject,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Validation Error",
+        description: error.errors?.[0]?.message || "Invalid flashcard data",
+        variant: "destructive",
+      });
+      return;
+    }
 
     const { error } = await supabase
       .from("flashcards")
       .insert({
         user_id: userId,
         subject: subject,
-        front: newFront,
-        back: newBack,
+        front: newFront.trim(),
+        back: newBack.trim(),
       });
 
     if (!error) {
@@ -74,6 +89,12 @@ export const FlashcardManager = ({ userId, subject }: FlashcardManagerProps) => 
       toast({
         title: "Flashcard created",
         description: "Your new flashcard has been added",
+      });
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to create flashcard",
+        variant: "destructive",
       });
     }
   };
@@ -186,6 +207,7 @@ export const FlashcardManager = ({ userId, subject }: FlashcardManagerProps) => 
                 onChange={(e) => setNewFront(e.target.value)}
                 placeholder="Enter the question or term..."
                 rows={3}
+                maxLength={500}
               />
             </div>
 
@@ -196,6 +218,7 @@ export const FlashcardManager = ({ userId, subject }: FlashcardManagerProps) => 
                 onChange={(e) => setNewBack(e.target.value)}
                 placeholder="Enter the answer or definition..."
                 rows={3}
+                maxLength={2000}
               />
             </div>
 
