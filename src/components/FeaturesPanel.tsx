@@ -43,14 +43,16 @@ export const FeaturesPanel = ({
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
-        <Button
-          variant="outline"
-          size="icon"
-          className={`${isIOS ? 'h-10 w-10' : 'h-9 w-9'}`}
+        <button
+          className={`${isIOS ? 'p-2' : 'p-1.5'} text-muted-foreground hover:text-foreground transition-colors`}
           title="Features & Tools"
         >
-          {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-        </Button>
+          {isOpen ? (
+            <ChevronUp className={`${isIOS ? 'w-6 h-6' : 'w-5 h-5'}`} />
+          ) : (
+            <ChevronDown className={`${isIOS ? 'w-6 h-6' : 'w-5 h-5'}`} />
+          )}
+        </button>
       </SheetTrigger>
       <SheetContent side={isIOS ? "bottom" : "right"} className={isIOS ? "h-[80vh]" : ""}>
         <SheetHeader>
