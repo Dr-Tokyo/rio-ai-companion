@@ -6,7 +6,7 @@ import { ChatMessage } from "@/components/ChatMessage";
 import { SubjectSelector } from "@/components/SubjectSelector";
 import { FeaturesPanel } from "@/components/FeaturesPanel";
 import { AutoNoteCapture } from "@/components/AutoNoteCapture";
-import { Send, Loader2, Mic, MicOff, Image as ImageIcon } from "lucide-react";
+import { Send, Loader2, Mic, MicOff, Image as ImageIcon, Camera } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { messageSchema } from "@/lib/validation";
@@ -35,6 +35,7 @@ const Index = () => {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const isIOS = useIsIOS();
@@ -476,6 +477,15 @@ const Index = () => {
               {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
             </Button>
             <Button
+              onClick={() => cameraInputRef.current?.click()}
+              variant="outline"
+              size="icon"
+              className={`shrink-0 ${uploadedImage ? 'border-primary bg-primary/10' : ''}`}
+              title="Scan with camera"
+            >
+              <Camera className="w-4 h-4" />
+            </Button>
+            <Button
               onClick={() => fileInputRef.current?.click()}
               variant="outline"
               size="icon"
@@ -484,6 +494,14 @@ const Index = () => {
             >
               <ImageIcon className="w-4 h-4" />
             </Button>
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleImageUpload}
+              className="hidden"
+            />
             <input
               ref={fileInputRef}
               type="file"
