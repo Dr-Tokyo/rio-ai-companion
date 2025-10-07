@@ -213,19 +213,27 @@ const Index = () => {
         </div>
       </header>
 
-      {/* Main content with character */}
+      {/* Main content with animated character */}
       <main className="flex-1 overflow-hidden flex">
-        {/* Character panel */}
-        <div className="hidden md:flex w-1/3 lg:w-1/4 items-center justify-center p-4 border-r border-border">
-          <RioCharacter isSpeaking={isSpeaking} className="w-full max-w-sm" />
+        {/* Character panel - desktop */}
+        <div className="hidden md:flex w-1/3 lg:w-1/4 items-center justify-center p-4 border-r border-border bg-gradient-to-b from-card/30 to-transparent">
+          <RioCharacter 
+            isSpeaking={isSpeaking} 
+            isThinking={isLoading}
+            className="w-full max-w-sm rio-character-container" 
+          />
         </div>
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto">
           <div className="container max-w-4xl mx-auto px-4 py-6 space-y-4">
             {/* Mobile character - shows at top */}
-            <div className="md:hidden mb-6">
-              <RioCharacter isSpeaking={isSpeaking} className="w-48 mx-auto" />
+            <div className="md:hidden mb-6 flex justify-center">
+              <RioCharacter 
+                isSpeaking={isSpeaking} 
+                isThinking={isLoading}
+                className="w-64 rio-character-container" 
+              />
             </div>
             
             {messages.map((message, index) => (
@@ -238,7 +246,7 @@ const Index = () => {
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-medium mb-1 text-foreground">Rio Futaba</p>
-                  <p className="text-sm text-muted-foreground">Thinking...</p>
+                  <p className="text-sm text-muted-foreground">Analyzing your question...</p>
                 </div>
               </div>
             )}

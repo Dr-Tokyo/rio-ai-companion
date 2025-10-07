@@ -1,73 +1,90 @@
-# Welcome to your Lovable project
+# Rio Futaba AI Helper
 
-## Project info
+An interactive AI study companion inspired by Rio Futaba from "Rascal Does Not Dream of Bunny Girl Senpai". Features voice interaction, animated 2D character, and cross-platform support.
 
-**URL**: https://lovable.dev/projects/1df7dec1-88da-43f2-a399-2634d96b0b24
+## Features
 
-## How can I edit this code?
+- 🎤 **Voice Interaction**: Speech-to-text input and text-to-speech responses
+- 🎨 **Animated Character**: Dynamic 2D Rio model with multiple expressions and smooth animations
+- 📚 **Multi-Subject Help**: Science, History, Math, and English
+- 🌐 **Cross-Platform**: Works on Web, iOS, Android, and Desktop (Ubuntu/macOS)
+- 💬 **AI-Powered**: Uses Google Gemini for intelligent, personality-driven responses
 
-There are several ways of editing your application.
+## Running the App
 
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/1df7dec1-88da-43f2-a399-2634d96b0b24) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+### Web Browser (All Platforms)
+Simply visit the deployed URL or run:
+```bash
+npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### Mobile (iOS/Android)
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+1. **Export to GitHub** via the button in Lovable
+2. **Clone the repository** locally
+3. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+4. **Add mobile platforms**:
+   ```bash
+   npx cap add ios      # For iOS (requires macOS + Xcode)
+   npx cap add android  # For Android (requires Android Studio)
+   ```
+5. **Build the project**:
+   ```bash
+   npm run build
+   ```
+6. **Sync with native platforms**:
+   ```bash
+   npx cap sync
+   ```
+7. **Run on device/emulator**:
+   ```bash
+   npx cap run ios      # For iOS
+   npx cap run android  # For Android
+   ```
 
-**Use GitHub Codespaces**
+### Desktop (Ubuntu/macOS)
+The app works perfectly in any modern web browser (Chrome, Firefox, Safari, Edge).
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+For a native desktop experience, you can:
+- Use Chrome/Edge's "Install App" feature (creates a desktop app)
+- Or simply bookmark the URL for quick access
 
-## What technologies are used for this project?
+## Architecture
 
-This project is built with:
+- **Frontend**: React + TypeScript + Tailwind CSS
+- **Backend**: Lovable Cloud (Supabase) with Edge Functions
+- **AI**: Google Gemini 2.5 Flash (via Lovable AI Gateway)
+- **Voice**: OpenAI Whisper (speech-to-text) + TTS (text-to-speech)
+- **Mobile**: Capacitor
 
-- Vite
+## Character States
+
+Rio's animated model includes multiple states:
+- **Idle**: Gentle breathing animation with subtle movement
+- **Speaking**: Active pose when giving voice responses
+- **Thinking**: Analytical pose while processing your question
+- **Happy**: Occasional smile when responding positively
+
+## Technologies Used
+
+- React 18
 - TypeScript
-- React
-- shadcn-ui
+- Vite
 - Tailwind CSS
+- Shadcn UI Components
+- Capacitor (for mobile)
+- Supabase Edge Functions
+- OpenAI API (Whisper + TTS)
+- Google Gemini AI
 
-## How can I deploy this project?
+## Development
 
-Simply open [Lovable](https://lovable.dev/projects/1df7dec1-88da-43f2-a399-2634d96b0b24) and click on Share -> Publish.
+This project was built with [Lovable](https://lovable.dev) - the AI-powered app builder.
 
-## Can I connect a custom domain to my Lovable project?
+## License
 
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+MIT
