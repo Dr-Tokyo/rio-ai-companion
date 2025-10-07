@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 interface Conversation {
   id: string;
   title: string;
-  subject: string;
+  subject?: string;
   created_at: string;
 }
 
@@ -92,7 +92,9 @@ export const ConversationList = ({
           >
             <div className="flex-1 truncate">
               <div className="font-medium truncate">{conv.title}</div>
-              <div className="text-xs text-muted-foreground">{conv.subject}</div>
+              {conv.subject && (
+                <div className="text-xs text-muted-foreground capitalize">{conv.subject.replace(/-/g, ' ')}</div>
+              )}
             </div>
             <Button
               variant="ghost"

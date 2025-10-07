@@ -115,7 +115,7 @@ export const Settings = ({
         keyboard_shortcuts
       `)
       .eq("user_id", userId)
-      .single();
+      .maybeSingle();
 
     if (data) {
       if (data.preferred_model) onModelChange(data.preferred_model);

@@ -108,7 +108,7 @@ const Index = () => {
       .from("profiles")
       .select("preferred_model")
       .eq("user_id", userId)
-      .single();
+      .maybeSingle();
 
     if (data?.preferred_model) {
       setSelectedModel(data.preferred_model);
@@ -120,6 +120,7 @@ const Index = () => {
       .from("conversations")
       .select("id")
       .eq("user_id", userId)
+      .order("created_at", { ascending: false })
       .limit(1);
 
     if (!existingConvs || existingConvs.length === 0) {
@@ -128,22 +129,24 @@ const Index = () => {
         .insert({
           user_id: userId,
           title: "New Conversation",
-          subject: selectedSubject,
+          subject: "physics",
         })
         .select()
         .single();
 
       if (newConv) {
         setCurrentConversationId(newConv.id);
+        const welcomeMessage = "I'm Rio Futaba. I can help you with Physics, Chemistry, Biology, Mathematics, Programming, Languages, History, and more. What do you need help with?";
+        
         await supabase.from("messages").insert({
           conversation_id: newConv.id,
           role: "assistant",
-          content: "I'm Rio Futaba. I can help you with Science, History, Math, English, or Coding/Debugging. What do you need help with?",
+          content: welcomeMessage,
         });
         
         setMessages([{
           role: "assistant",
-          content: "I'm Rio Futaba. I can help you with Science, History, Math, English, or Coding/Debugging. What do you need help with?",
+          content: welcomeMessage,
         }]);
       }
     } else {
@@ -154,6 +157,18 @@ const Index = () => {
   const loadConversation = async (conversationId: string) => {
     setCurrentConversationId(conversationId);
     
+    // Load conversation details
+    const { data: conv } = await supabase
+      .from("conversations")
+      .select("subject")
+      .eq("id", conversationId)
+      .single();
+    
+    if (conv?.subject) {
+      setSelectedSubject(conv.subject);
+    }
+    
+    // Load messages
     const { data } = await supabase
       .from("messages")
       .select("role, content")
@@ -179,24 +194,27 @@ const Index = () => {
     if (!input.trim() || isLoading || !user || !currentConversationId) return;
 
     const userMessage: Message = { role: "user", content: input };
+    const messageText = input;
 
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
-
     setIsThinking(true);
 
     // Save user message to database
     await supabase.from("messages").insert({
       conversation_id: currentConversationId,
       role: "user",
-      content: input,
+      content: messageText,
     });
 
-    // Update conversation updated_at
+    // Update conversation updated_at and subject
     await supabase
       .from("conversations")
-      .update({ updated_at: new Date().toISOString() })
+      .update({ 
+        updated_at: new Date().toISOString(),
+        subject: selectedSubject,
+      })
       .eq("id", currentConversationId);
 
     try {
