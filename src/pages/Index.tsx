@@ -4,17 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChatMessage } from "@/components/ChatMessage";
 import { SubjectSelector } from "@/components/SubjectSelector";
-import { Settings } from "@/components/Settings";
-import { ConversationList } from "@/components/ConversationList";
-import { ConversationSearch } from "@/components/ConversationSearch";
-import { KeyboardShortcutsHelp } from "@/components/KeyboardShortcutsHelp";
-import { StudyTimer } from "@/components/StudyTimer";
-import { FlashcardManager } from "@/components/FlashcardManager";
-import { QuizGenerator } from "@/components/QuizGenerator";
-import { NoteManager } from "@/components/NoteManager";
-import { StudyProgress } from "@/components/StudyProgress";
+import { FeaturesPanel } from "@/components/FeaturesPanel";
 import { AutoNoteCapture } from "@/components/AutoNoteCapture";
-import { Send, Loader2, Download, LogOut, HelpCircle, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
+import { Send, Loader2, Mic, MicOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { messageSchema } from "@/lib/validation";
@@ -374,40 +366,22 @@ const Index = () => {
                 Rio Futaba Study Bot
               </h1>
             </div>
-            <div className="flex items-center gap-1 md:gap-2 flex-wrap">
-              <StudyProgress userId={user.id} />
-              <StudyTimer userId={user.id} subject={selectedSubject} />
-              <NoteManager userId={user.id} subject={selectedSubject} />
-              <FlashcardManager userId={user.id} subject={selectedSubject} />
-              <QuizGenerator userId={user.id} subject={selectedSubject} />
-              <Button variant="outline" size="icon" onClick={() => navigate("/help")} title="Help & Support">
-                <HelpCircle className="w-4 h-4" />
-              </Button>
-              <Button variant="outline" size="icon" onClick={exportConversation} title="Export conversation">
-                <Download className="w-4 h-4" />
-              </Button>
-              <ConversationSearch
+            <div className="flex items-center gap-2">
+              <FeaturesPanel
                 userId={user.id}
-                onSelectConversation={loadConversation}
-              />
-              <ConversationList
-                userId={user.id}
+                subject={selectedSubject}
+                selectedModel={selectedModel}
                 currentConversationId={currentConversationId}
+                onModelChange={setSelectedModel}
                 onSelectConversation={loadConversation}
                 onNewConversation={() => createInitialConversation(user.id)}
+                onExport={exportConversation}
+                onSignOut={handleSignOut}
+                isIOS={isIOS}
               />
-              <Settings
-                userId={user.id}
-                selectedModel={selectedModel}
-                onModelChange={setSelectedModel}
-              />
-              <Button variant="outline" size="icon" onClick={handleSignOut} title="Sign out">
-                <LogOut className="w-4 h-4" />
-              </Button>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <KeyboardShortcutsHelp />
             <SubjectSelector selected={selectedSubject} onSelect={setSelectedSubject} />
           </div>
         </div>
