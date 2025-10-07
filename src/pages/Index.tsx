@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChatMessage } from "@/components/ChatMessage";
 import { SubjectSelector } from "@/components/SubjectSelector";
-import { RioCharacter } from "@/components/RioCharacter";
 import { Settings } from "@/components/Settings";
 import { ConversationList } from "@/components/ConversationList";
 import { ConversationSearch } from "@/components/ConversationSearch";
@@ -240,14 +239,14 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-gradient-secondary flex flex-col">
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container max-w-6xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between mb-4">
+        <div className="container max-w-6xl mx-auto px-4 py-3 md:py-4">
+          <div className="flex items-center justify-between mb-3 md:mb-4 gap-2">
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+              <h1 className="text-xl md:text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
                 Rio Futaba Study Bot
               </h1>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 md:gap-2 flex-wrap">
               <StudyProgress userId={FIXED_USER_ID} />
               <StudyTimer userId={FIXED_USER_ID} subject={selectedSubject} />
               <FlashcardManager userId={FIXED_USER_ID} subject={selectedSubject} />
@@ -279,59 +278,41 @@ const Index = () => {
         </div>
       </header>
 
-      <main className="flex-1 overflow-hidden flex">
-        <div className="hidden md:flex w-1/3 lg:w-1/4 items-center justify-center p-4 border-r border-border bg-gradient-to-b from-card/30 to-transparent">
-          <RioCharacter 
-            isSpeaking={false} 
-            isThinking={isThinking}
-            className="w-full max-w-sm rio-character-container" 
-          />
-        </div>
-
-        <div className="flex-1 overflow-y-auto">
-          <div className="container max-w-4xl mx-auto px-4 py-6 space-y-4">
-            <div className="md:hidden mb-6 flex justify-center">
-              <RioCharacter 
-                isSpeaking={false} 
-                isThinking={isThinking}
-                className="w-64 rio-character-container" 
-              />
-            </div>
-            
-            {messages.map((message, index) => (
-              <ChatMessage key={index} role={message.role} content={message.content} />
-            ))}
-            {isLoading && (
-              <div className="flex gap-3 p-4 rounded-lg bg-card max-w-[85%] shadow-card">
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-accent flex items-center justify-center">
-                  <Loader2 className="w-4 h-4 text-foreground animate-spin" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium mb-1 text-foreground">Rio Futaba</p>
-                  <p className="text-sm text-muted-foreground">Analyzing with {selectedModel.split("/")[1]}...</p>
-                </div>
+      <main className="flex-1 overflow-y-auto">
+        <div className="container max-w-4xl mx-auto px-4 py-4 md:py-6 space-y-4">
+          {messages.map((message, index) => (
+            <ChatMessage key={index} role={message.role} content={message.content} />
+          ))}
+          {isLoading && (
+            <div className="flex gap-3 p-4 rounded-lg bg-card max-w-[85%] shadow-card">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-accent flex items-center justify-center">
+                <Loader2 className="w-4 h-4 text-foreground animate-spin" />
               </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium mb-1 text-foreground">Rio Futaba</p>
+                <p className="text-sm text-muted-foreground">Analyzing with {selectedModel.split("/")[1]}...</p>
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
         </div>
       </main>
 
       <footer className="border-t border-border bg-card/50 backdrop-blur-sm sticky bottom-0">
-        <div className="container max-w-6xl mx-auto px-4 py-4">
+        <div className="container max-w-6xl mx-auto px-4 py-3 md:py-4">
           <div className="flex gap-2">
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Ask me anything about your studies or code..."
+              placeholder="Ask me anything about your studies..."
               disabled={isLoading}
-              className="flex-1 bg-background/50 border-border focus:border-primary transition-colors"
+              className="flex-1 bg-background/50 border-border focus:border-primary transition-colors text-base"
             />
             <Button
               onClick={handleSend}
               disabled={isLoading || !input.trim()}
-              className="bg-gradient-primary hover:shadow-glow transition-all duration-300"
+              className="bg-gradient-primary hover:shadow-glow transition-all duration-300 shrink-0"
             >
               {isLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
