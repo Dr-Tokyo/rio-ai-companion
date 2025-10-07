@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Help from "./pages/Help";
+import SharedNote from "./pages/SharedNote";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -20,6 +21,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/help" element={<Help />} />
+          <Route path="/shared/:shareCode" element={<SharedNote />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

@@ -246,6 +246,44 @@ export type Database = {
         }
         Relationships: []
       }
+      shared_notes: {
+        Row: {
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          note_id: string
+          share_code: string
+          shared_by: string
+          view_count: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          note_id: string
+          share_code: string
+          shared_by: string
+          view_count?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          note_id?: string
+          share_code?: string
+          shared_by?: string
+          view_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shared_notes_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "study_notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       study_notes: {
         Row: {
           content: string
@@ -379,6 +417,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_share_code: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

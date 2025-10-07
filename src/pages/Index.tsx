@@ -11,6 +11,7 @@ import { KeyboardShortcutsHelp } from "@/components/KeyboardShortcutsHelp";
 import { StudyTimer } from "@/components/StudyTimer";
 import { FlashcardManager } from "@/components/FlashcardManager";
 import { QuizGenerator } from "@/components/QuizGenerator";
+import { NoteManager } from "@/components/NoteManager";
 import { StudyProgress } from "@/components/StudyProgress";
 import { Send, Loader2, Download, LogOut, HelpCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -300,6 +301,7 @@ const Index = () => {
             <div className="flex items-center gap-1 md:gap-2 flex-wrap">
               <StudyProgress userId={user.id} />
               <StudyTimer userId={user.id} subject={selectedSubject} />
+              <NoteManager userId={user.id} subject={selectedSubject} />
               <FlashcardManager userId={user.id} subject={selectedSubject} />
               <QuizGenerator userId={user.id} subject={selectedSubject} />
               <Button variant="outline" size="icon" onClick={() => navigate("/help")} title="Help & Support">
