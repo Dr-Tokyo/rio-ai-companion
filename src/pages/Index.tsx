@@ -13,10 +13,12 @@ import { FlashcardManager } from "@/components/FlashcardManager";
 import { QuizGenerator } from "@/components/QuizGenerator";
 import { NoteManager } from "@/components/NoteManager";
 import { StudyProgress } from "@/components/StudyProgress";
-import { Send, Loader2, Download, LogOut, HelpCircle } from "lucide-react";
+import { AutoNoteCapture } from "@/components/AutoNoteCapture";
+import { Send, Loader2, Download, LogOut, HelpCircle, Mic, MicOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { messageSchema } from "@/lib/validation";
+import { useIsIOS } from "@/hooks/use-ios";
 import type { User, Session } from "@supabase/supabase-js";
 
 interface Message {
@@ -34,9 +36,13 @@ const Index = () => {
   const [selectedModel, setSelectedModel] = useState("google/gemini-2.5-flash");
   const [isThinking, setIsThinking] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const [isVoiceMode, setIsVoiceMode] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const isIOS = useIsIOS();
 
   // Auth check and initialization
   useEffect(() => {
@@ -156,6 +162,58 @@ const Index = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Voice recognition setup
+  useEffect(() => {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = true;
+      recognitionRef.current.interimResults = true;
+
+      recognitionRef.current.onresult = (event: any) => {
+        let interimTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            setInput(prev => prev + ' ' + transcript);
+            setVoiceTranscript(prev => prev + ' ' + transcript);
+          } else {
+            interimTranscript += transcript;
+          }
+        }
+      };
+
+      recognitionRef.current.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsVoiceMode(false);
+      };
+    }
+  }, []);
+
+  const toggleVoiceMode = () => {
+    if (!recognitionRef.current) {
+      toast({
+        title: "Not Supported",
+        description: "Voice input is not supported in this browser",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (isVoiceMode) {
+      recognitionRef.current.stop();
+      setIsVoiceMode(false);
+    } else {
+      recognitionRef.current.start();
+      setIsVoiceMode(true);
+      setVoiceTranscript("");
+      toast({
+        title: "Voice Mode Active",
+        description: "AI is now capturing notes automatically",
+      });
+    }
+  };
 
 
 
@@ -289,7 +347,7 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-secondary flex flex-col">
+    <div className={`min-h-screen bg-gradient-secondary flex flex-col ${isIOS ? 'ios-optimized' : ''}`}>
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container max-w-6xl mx-auto px-4 py-3 md:py-4">
           <div className="flex items-center justify-between mb-3 md:mb-4 gap-2">
@@ -357,16 +415,25 @@ const Index = () => {
         </div>
       </main>
 
-      <footer className="border-t border-border bg-card/50 backdrop-blur-sm sticky bottom-0">
+      <footer className={`border-t border-border bg-card/50 backdrop-blur-sm sticky bottom-0 ${isIOS ? 'pb-safe' : ''}`}>
         <div className="container max-w-6xl mx-auto px-4 py-3 md:py-4">
           <div className="flex gap-2">
+            <Button
+              onClick={toggleVoiceMode}
+              variant={isVoiceMode ? "default" : "outline"}
+              size="icon"
+              className={`shrink-0 ${isVoiceMode ? 'bg-red-500 hover:bg-red-600 animate-pulse' : ''}`}
+              title={isVoiceMode ? "Stop voice input" : "Start voice input"}
+            >
+              {isVoiceMode ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            </Button>
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Ask me anything about your studies..."
+              placeholder={isVoiceMode ? "Listening..." : "Ask me anything about your studies..."}
               disabled={isLoading}
-              className="flex-1 bg-background/50 border-border focus:border-primary transition-colors text-base"
+              className={`flex-1 bg-background/50 border-border focus:border-primary transition-colors ${isIOS ? 'text-lg' : 'text-base'}`}
             />
             <Button
               onClick={handleSend}
@@ -382,9 +449,17 @@ const Index = () => {
           </div>
           <p className="text-xs text-muted-foreground text-center mt-2">
             Using: {selectedModel.split("/")[1]}
+            {isVoiceMode && " • Voice Mode Active"}
           </p>
         </div>
       </footer>
+
+      <AutoNoteCapture
+        userId={user.id}
+        subject={selectedSubject}
+        conversationText={voiceTranscript}
+        isActive={isVoiceMode}
+      />
     </div>
   );
 };
