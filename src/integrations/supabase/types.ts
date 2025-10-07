@@ -14,10 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      conversation_tags: {
+        Row: {
+          color: string | null
+          conversation_id: string
+          created_at: string | null
+          id: string
+          tag: string
+        }
+        Insert: {
+          color?: string | null
+          conversation_id: string
+          created_at?: string | null
+          id?: string
+          tag: string
+        }
+        Update: {
+          color?: string | null
+          conversation_id?: string
+          created_at?: string | null
+          id?: string
+          tag?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_tags_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversations: {
         Row: {
           created_at: string | null
           id: string
+          is_favorite: boolean | null
+          notes: string | null
           subject: string | null
           title: string
           updated_at: string | null
@@ -26,6 +60,8 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: string
+          is_favorite?: boolean | null
+          notes?: string | null
           subject?: string | null
           title?: string
           updated_at?: string | null
@@ -34,6 +70,8 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: string
+          is_favorite?: boolean | null
+          notes?: string | null
           subject?: string | null
           title?: string
           updated_at?: string | null
@@ -77,8 +115,17 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string | null
+          dyslexia_font: boolean | null
+          font_size: string | null
+          high_contrast: boolean | null
           id: string
+          keyboard_shortcuts: boolean | null
+          language: string | null
+          message_density: string | null
           preferred_model: string | null
+          show_character: boolean | null
+          show_timestamps: boolean | null
+          theme: string | null
           updated_at: string | null
           user_id: string
           username: string | null
@@ -86,8 +133,17 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           created_at?: string | null
+          dyslexia_font?: boolean | null
+          font_size?: string | null
+          high_contrast?: boolean | null
           id?: string
+          keyboard_shortcuts?: boolean | null
+          language?: string | null
+          message_density?: string | null
           preferred_model?: string | null
+          show_character?: boolean | null
+          show_timestamps?: boolean | null
+          theme?: string | null
           updated_at?: string | null
           user_id: string
           username?: string | null
@@ -95,8 +151,17 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           created_at?: string | null
+          dyslexia_font?: boolean | null
+          font_size?: string | null
+          high_contrast?: boolean | null
           id?: string
+          keyboard_shortcuts?: boolean | null
+          language?: string | null
+          message_density?: string | null
           preferred_model?: string | null
+          show_character?: boolean | null
+          show_timestamps?: boolean | null
+          theme?: string | null
           updated_at?: string | null
           user_id?: string
           username?: string | null

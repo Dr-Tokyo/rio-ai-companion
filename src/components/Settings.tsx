@@ -16,7 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Settings as SettingsIcon, Crown } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Settings as SettingsIcon, Crown, Accessibility, Palette, Sliders } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -85,6 +86,14 @@ export const Settings = ({
   onModelChange,
   isAdmin
 }: SettingsProps) => {
+  const [fontSize, setFontSize] = useState("medium");
+  const [highContrast, setHighContrast] = useState(false);
+  const [dyslexiaFont, setDyslexiaFont] = useState(false);
+  const [theme, setTheme] = useState("system");
+  const [messageDensity, setMessageDensity] = useState("comfortable");
+  const [showTimestamps, setShowTimestamps] = useState(true);
+  const [showCharacter, setShowCharacter] = useState(true);
+  const [keyboardShortcuts, setKeyboardShortcuts] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -94,12 +103,30 @@ export const Settings = ({
   const loadSettings = async () => {
     const { data } = await supabase
       .from("profiles")
-      .select("preferred_model")
+      .select(`
+        preferred_model,
+        font_size,
+        high_contrast,
+        dyslexia_font,
+        theme,
+        message_density,
+        show_timestamps,
+        show_character,
+        keyboard_shortcuts
+      `)
       .eq("user_id", userId)
       .single();
 
-    if (data?.preferred_model) {
-      onModelChange(data.preferred_model);
+    if (data) {
+      if (data.preferred_model) onModelChange(data.preferred_model);
+      setFontSize(data.font_size || "medium");
+      setHighContrast(data.high_contrast || false);
+      setDyslexiaFont(data.dyslexia_font || false);
+      setTheme(data.theme || "system");
+      setMessageDensity(data.message_density || "comfortable");
+      setShowTimestamps(data.show_timestamps ?? true);
+      setShowCharacter(data.show_character ?? true);
+      setKeyboardShortcuts(data.keyboard_shortcuts ?? true);
     }
   };
 
@@ -108,6 +135,14 @@ export const Settings = ({
       .from("profiles")
       .update({
         preferred_model: selectedModel,
+        font_size: fontSize,
+        high_contrast: highContrast,
+        dyslexia_font: dyslexiaFont,
+        theme: theme,
+        message_density: messageDensity,
+        show_timestamps: showTimestamps,
+        show_character: showCharacter,
+        keyboard_shortcuts: keyboardShortcuts,
       })
       .eq("user_id", userId);
 
@@ -135,7 +170,7 @@ export const Settings = ({
           )}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             Settings
@@ -146,37 +181,155 @@ export const Settings = ({
           </DialogDescription>
         </DialogHeader>
         
-        <div className="space-y-6 py-4">
-          <div className="space-y-2">
-            <Label>AI Model</Label>
-            <Select value={selectedModel} onValueChange={onModelChange}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {AI_MODELS.map((model) => (
-                  <SelectItem key={model.id} value={model.id}>
-                    <div className="flex items-center gap-2">
-                      <span>{model.name}</span>
-                      {model.free && (
-                        <span className="text-xs bg-green-500/20 text-green-700 dark:text-green-400 px-2 py-0.5 rounded">
-                          FREE
-                        </span>
-                      )}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              {AI_MODELS.find(m => m.id === selectedModel)?.description}
-            </p>
-          </div>
+        <Tabs defaultValue="ai" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="ai">
+              <Sliders className="w-4 h-4 mr-2" />
+              AI
+            </TabsTrigger>
+            <TabsTrigger value="accessibility">
+              <Accessibility className="w-4 h-4 mr-2" />
+              Accessibility
+            </TabsTrigger>
+            <TabsTrigger value="display">
+              <Palette className="w-4 h-4 mr-2" />
+              Display
+            </TabsTrigger>
+          </TabsList>
 
-          <Button onClick={saveSettings} className="w-full bg-gradient-primary">
-            Save Settings
-          </Button>
-        </div>
+          <TabsContent value="ai" className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label>AI Model</Label>
+              <Select value={selectedModel} onValueChange={onModelChange}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {AI_MODELS.map((model) => (
+                    <SelectItem key={model.id} value={model.id}>
+                      <div className="flex items-center gap-2">
+                        <span>{model.name}</span>
+                        {model.free && (
+                          <span className="text-xs bg-green-500/20 text-green-700 dark:text-green-400 px-2 py-0.5 rounded">
+                            FREE
+                          </span>
+                        )}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {AI_MODELS.find(m => m.id === selectedModel)?.description}
+              </p>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="accessibility" className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label>Font Size</Label>
+              <Select value={fontSize} onValueChange={setFontSize}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="small">Small</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="large">Large</SelectItem>
+                  <SelectItem value="extra-large">Extra Large</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <Label htmlFor="high-contrast">High Contrast Mode</Label>
+                <p className="text-xs text-muted-foreground">Enhanced visibility</p>
+              </div>
+              <Switch
+                id="high-contrast"
+                checked={highContrast}
+                onCheckedChange={setHighContrast}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <Label htmlFor="dyslexia-font">Dyslexia-Friendly Font</Label>
+                <p className="text-xs text-muted-foreground">OpenDyslexic typeface</p>
+              </div>
+              <Switch
+                id="dyslexia-font"
+                checked={dyslexiaFont}
+                onCheckedChange={setDyslexiaFont}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <Label htmlFor="keyboard-shortcuts">Keyboard Shortcuts</Label>
+                <p className="text-xs text-muted-foreground">Enable hotkeys (Ctrl+K, etc.)</p>
+              </div>
+              <Switch
+                id="keyboard-shortcuts"
+                checked={keyboardShortcuts}
+                onCheckedChange={setKeyboardShortcuts}
+              />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="display" className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label>Theme</Label>
+              <Select value={theme} onValueChange={setTheme}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="light">Light</SelectItem>
+                  <SelectItem value="dark">Dark</SelectItem>
+                  <SelectItem value="system">System</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Message Density</Label>
+              <Select value={messageDensity} onValueChange={setMessageDensity}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="compact">Compact</SelectItem>
+                  <SelectItem value="comfortable">Comfortable</SelectItem>
+                  <SelectItem value="spacious">Spacious</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <Label htmlFor="show-timestamps">Show Timestamps</Label>
+              <Switch
+                id="show-timestamps"
+                checked={showTimestamps}
+                onCheckedChange={setShowTimestamps}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <Label htmlFor="show-character">Show Rio Character</Label>
+              <Switch
+                id="show-character"
+                checked={showCharacter}
+                onCheckedChange={setShowCharacter}
+              />
+            </div>
+          </TabsContent>
+        </Tabs>
+
+        <Button onClick={saveSettings} className="w-full bg-gradient-primary mt-4">
+          Save All Settings
+        </Button>
       </DialogContent>
     </Dialog>
   );

@@ -6,7 +6,9 @@ import { SubjectSelector } from "@/components/SubjectSelector";
 import { RioCharacter } from "@/components/RioCharacter";
 import { Settings } from "@/components/Settings";
 import { ConversationList } from "@/components/ConversationList";
-import { Send, Loader2, LogOut, Download, Crown } from "lucide-react";
+import { ConversationSearch } from "@/components/ConversationSearch";
+import { KeyboardShortcutsHelp } from "@/components/KeyboardShortcutsHelp";
+import { Send, Loader2, LogOut, Download, Crown, Star, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -27,7 +29,7 @@ const Index = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedSubject, setSelectedSubject] = useState("science");
+  const [selectedSubject, setSelectedSubject] = useState("physics");
   const [selectedModel, setSelectedModel] = useState("google/gemini-2.5-flash");
   const [isThinking, setIsThinking] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
@@ -176,10 +178,7 @@ const Index = () => {
   const handleSend = async () => {
     if (!input.trim() || isLoading || !user || !currentConversationId) return;
 
-    const userMessage: Message = {
-      role: "user",
-      content: input,
-    };
+    const userMessage: Message = { role: "user", content: input };
 
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
@@ -193,6 +192,12 @@ const Index = () => {
       role: "user",
       content: input,
     });
+
+    // Update conversation updated_at
+    await supabase
+      .from("conversations")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", currentConversationId);
 
     try {
       const response = await fetch(
@@ -308,6 +313,12 @@ const Index = () => {
                 <Download className="w-4 h-4" />
               </Button>
               {user && (
+                <ConversationSearch
+                  userId={user.id}
+                  onSelectConversation={loadConversation}
+                />
+              )}
+              {user && (
                 <ConversationList
                   userId={user.id}
                   currentConversationId={currentConversationId}
@@ -328,7 +339,10 @@ const Index = () => {
               </Button>
             </div>
           </div>
-          <SubjectSelector selected={selectedSubject} onSelect={setSelectedSubject} />
+          <div className="flex items-center gap-2">
+            <KeyboardShortcutsHelp />
+            <SubjectSelector selected={selectedSubject} onSelect={setSelectedSubject} />
+          </div>
         </div>
       </header>
 
