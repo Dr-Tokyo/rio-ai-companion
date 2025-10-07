@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { User, Bot, Copy, Check } from "lucide-react";
+import { User, Bot, Copy, Check, Volume2 } from "lucide-react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { Button } from "@/components/ui/button";
@@ -9,9 +9,11 @@ import { useState } from "react";
 interface ChatMessageProps {
   role: "user" | "assistant";
   content: string;
+  onSpeak?: () => void;
+  isSpeaking?: boolean;
 }
 
-export const ChatMessage = ({ role, content }: ChatMessageProps) => {
+export const ChatMessage = ({ role, content, onSpeak, isSpeaking }: ChatMessageProps) => {
   const isUser = role === "user";
   const { toast } = useToast();
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
@@ -133,9 +135,23 @@ export const ChatMessage = ({ role, content }: ChatMessageProps) => {
       </div>
       
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium mb-1 text-foreground">
-          {isUser ? "You" : "Rio Futaba"}
-        </p>
+        <div className="flex items-center justify-between mb-1">
+          <p className="text-sm font-medium text-foreground">
+            {isUser ? "You" : "Rio Futaba"}
+          </p>
+          {!isUser && onSpeak && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onSpeak}
+              disabled={isSpeaking}
+              className="h-6 px-2 opacity-60 hover:opacity-100 transition-opacity"
+              title="Read aloud"
+            >
+              <Volume2 className={cn("w-3 h-3", isSpeaking && "animate-pulse text-primary")} />
+            </Button>
+          )}
+        </div>
         <div className="text-sm text-foreground/90">
           {renderContent()}
         </div>

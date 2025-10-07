@@ -14,7 +14,7 @@ import { QuizGenerator } from "@/components/QuizGenerator";
 import { NoteManager } from "@/components/NoteManager";
 import { StudyProgress } from "@/components/StudyProgress";
 import { AutoNoteCapture } from "@/components/AutoNoteCapture";
-import { Send, Loader2, Download, LogOut, HelpCircle, Mic, MicOff } from "lucide-react";
+import { Send, Loader2, Download, LogOut, HelpCircle, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { messageSchema } from "@/lib/validation";
@@ -38,6 +38,8 @@ const Index = () => {
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [isVoiceMode, setIsVoiceMode] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState("");
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
   const navigate = useNavigate();
@@ -213,6 +215,62 @@ const Index = () => {
         description: "AI is now capturing notes automatically",
       });
     }
+  };
+
+  const handleTextToSpeech = async (text: string) => {
+    try {
+      // Stop any currently playing audio
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+      }
+
+      setIsSpeaking(true);
+
+      const { data, error } = await supabase.functions.invoke('text-to-speech', {
+        body: { text, voice: 'nova' }
+      });
+
+      if (error) throw error;
+
+      // Create audio element and play
+      const audio = new Audio(`data:audio/mpeg;base64,${data.audioContent}`);
+      setCurrentAudio(audio);
+      
+      audio.onended = () => {
+        setIsSpeaking(false);
+        setCurrentAudio(null);
+      };
+      
+      audio.onerror = () => {
+        setIsSpeaking(false);
+        setCurrentAudio(null);
+        toast({
+          title: "Playback Error",
+          description: "Failed to play audio",
+          variant: "destructive",
+        });
+      };
+
+      await audio.play();
+    } catch (error) {
+      console.error('TTS error:', error);
+      setIsSpeaking(false);
+      toast({
+        title: "Text-to-Speech Error",
+        description: error instanceof Error ? error.message : "Failed to convert text to speech",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const stopSpeaking = () => {
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+      setCurrentAudio(null);
+    }
+    setIsSpeaking(false);
   };
 
 
@@ -398,7 +456,13 @@ const Index = () => {
       <main className="flex-1 overflow-y-auto">
         <div className="container max-w-4xl mx-auto px-4 py-4 md:py-6 space-y-4">
           {messages.map((message, index) => (
-            <ChatMessage key={index} role={message.role} content={message.content} />
+            <ChatMessage 
+              key={index} 
+              role={message.role} 
+              content={message.content}
+              onSpeak={message.role === 'assistant' ? () => handleTextToSpeech(message.content) : undefined}
+              isSpeaking={isSpeaking}
+            />
           ))}
           {isLoading && (
             <div className="flex gap-3 p-4 rounded-lg bg-card max-w-[85%] shadow-card">
