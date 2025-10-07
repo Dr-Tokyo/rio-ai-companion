@@ -3,6 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChatMessage } from "@/components/ChatMessage";
 import { SubjectSelector } from "@/components/SubjectSelector";
+import { RioCharacter } from "@/components/RioCharacter";
+import { VoiceControls } from "@/components/VoiceControls";
+import { useVoiceRecorder } from "@/hooks/useVoiceRecorder";
 import { Send, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -21,8 +24,12 @@ const Index = () => {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState("science");
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const { toast } = useToast();
+  const { isRecording, toggleRecording } = useVoiceRecorder();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -31,6 +38,87 @@ const Index = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const playAudio = async (text: string) => {
+    if (!voiceEnabled) return;
+
+    try {
+      setIsSpeaking(true);
+      
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/text-to-speech`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ text }),
+        }
+      );
+
+      if (!response.ok) throw new Error("TTS failed");
+
+      const data = await response.json();
+      
+      // Create audio element and play
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+
+      const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`);
+      audioRef.current = audio;
+      
+      audio.onended = () => setIsSpeaking(false);
+      audio.onerror = () => setIsSpeaking(false);
+      
+      await audio.play();
+    } catch (error) {
+      console.error("Audio playback error:", error);
+      setIsSpeaking(false);
+    }
+  };
+
+  const handleVoiceInput = async () => {
+    try {
+      const audioData = await toggleRecording();
+      
+      if (!audioData) return; // Started recording
+
+      // Transcribe audio
+      setIsLoading(true);
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/speech-to-text`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ audio: audioData }),
+        }
+      );
+
+      if (!response.ok) throw new Error("Transcription failed");
+
+      const data = await response.json();
+      setInput(data.text);
+      setIsLoading(false);
+
+      toast({
+        title: "Transcribed",
+        description: "Your voice message has been converted to text.",
+      });
+    } catch (error) {
+      console.error("Voice input error:", error);
+      setIsLoading(false);
+      toast({
+        title: "Error",
+        description: "Failed to process voice input",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -75,6 +163,11 @@ const Index = () => {
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
+      
+      // Play audio response
+      if (voiceEnabled) {
+        await playAudio(data.message);
+      }
     } catch (error) {
       console.error("Error:", error);
       toast({
@@ -98,7 +191,7 @@ const Index = () => {
     <div className="min-h-screen bg-gradient-secondary flex flex-col">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container max-w-4xl mx-auto px-4 py-4">
+        <div className="container max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
@@ -108,47 +201,67 @@ const Index = () => {
                 Your analytical study companion
               </p>
             </div>
+            <VoiceControls
+              isRecording={isRecording}
+              onToggleRecording={handleVoiceInput}
+              voiceEnabled={voiceEnabled}
+              onToggleVoice={() => setVoiceEnabled(!voiceEnabled)}
+              disabled={isLoading}
+            />
           </div>
           <SubjectSelector selected={selectedSubject} onSelect={setSelectedSubject} />
         </div>
       </header>
 
-      {/* Messages */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="container max-w-4xl mx-auto px-4 py-6 space-y-4">
-          {messages.map((message, index) => (
-            <ChatMessage key={index} role={message.role} content={message.content} />
-          ))}
-          {isLoading && (
-            <div className="flex gap-3 p-4 rounded-lg bg-card max-w-[80%] shadow-card">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-accent flex items-center justify-center">
-                <Loader2 className="w-4 h-4 text-foreground animate-spin" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium mb-1 text-foreground">Rio Futaba</p>
-                <p className="text-sm text-muted-foreground">Thinking...</p>
-              </div>
+      {/* Main content with character */}
+      <main className="flex-1 overflow-hidden flex">
+        {/* Character panel */}
+        <div className="hidden md:flex w-1/3 lg:w-1/4 items-center justify-center p-4 border-r border-border">
+          <RioCharacter isSpeaking={isSpeaking} className="w-full max-w-sm" />
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="container max-w-4xl mx-auto px-4 py-6 space-y-4">
+            {/* Mobile character - shows at top */}
+            <div className="md:hidden mb-6">
+              <RioCharacter isSpeaking={isSpeaking} className="w-48 mx-auto" />
             </div>
-          )}
-          <div ref={messagesEndRef} />
+            
+            {messages.map((message, index) => (
+              <ChatMessage key={index} role={message.role} content={message.content} />
+            ))}
+            {isLoading && (
+              <div className="flex gap-3 p-4 rounded-lg bg-card max-w-[80%] shadow-card">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-accent flex items-center justify-center">
+                  <Loader2 className="w-4 h-4 text-foreground animate-spin" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium mb-1 text-foreground">Rio Futaba</p>
+                  <p className="text-sm text-muted-foreground">Thinking...</p>
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
         </div>
       </main>
 
       {/* Input */}
       <footer className="border-t border-border bg-card/50 backdrop-blur-sm sticky bottom-0">
-        <div className="container max-w-4xl mx-auto px-4 py-4">
+        <div className="container max-w-6xl mx-auto px-4 py-4">
           <div className="flex gap-2">
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="Ask me anything about your studies..."
-              disabled={isLoading}
+              disabled={isLoading || isRecording}
               className="flex-1 bg-background/50 border-border focus:border-primary transition-colors"
             />
             <Button
               onClick={handleSend}
-              disabled={isLoading || !input.trim()}
+              disabled={isLoading || !input.trim() || isRecording}
               className="bg-gradient-primary hover:shadow-glow transition-all duration-300"
             >
               {isLoading ? (
