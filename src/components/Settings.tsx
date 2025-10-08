@@ -351,26 +351,76 @@ export const Settings = ({
                 variant="outline" 
                 className="w-full justify-start"
                 onClick={async () => {
-                  const { data: sessions } = await supabase
-                    .from("study_sessions")
-                    .select("*")
-                    .eq("user_id", userId);
-                  
-                  const blob = new Blob([JSON.stringify(sessions, null, 2)], { type: "application/json" });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = "my-study-data.json";
-                  a.click();
-                  
-                  toast({
-                    title: "Data exported",
-                    description: "Your study data has been downloaded",
-                  });
+                  try {
+                    // Fetch all user data from all tables
+                    const [
+                      conversations,
+                      messages,
+                      notes,
+                      studyNotes,
+                      flashcards,
+                      quizzes,
+                      studySessions,
+                      profiles,
+                      sharedNotes,
+                      uploadedFiles,
+                      conversationTags
+                    ] = await Promise.all([
+                      supabase.from("conversations").select("*").eq("user_id", userId),
+                      supabase.from("messages").select("*, conversation:conversations!inner(user_id)").eq("conversation.user_id", userId),
+                      supabase.from("notes").select("*").eq("user_id", userId),
+                      supabase.from("study_notes").select("*").eq("user_id", userId),
+                      supabase.from("flashcards").select("*").eq("user_id", userId),
+                      supabase.from("quizzes").select("*").eq("user_id", userId),
+                      supabase.from("study_sessions").select("*").eq("user_id", userId),
+                      supabase.from("profiles").select("*").eq("user_id", userId),
+                      supabase.from("shared_notes").select("*").eq("shared_by", userId),
+                      supabase.from("uploaded_files").select("*").eq("user_id", userId),
+                      supabase.from("conversation_tags").select("*, conversation:conversations!inner(user_id)").eq("conversation.user_id", userId)
+                    ]);
+
+                    const exportData = {
+                      export_date: new Date().toISOString(),
+                      user_id: userId,
+                      data: {
+                        conversations: conversations.data || [],
+                        messages: messages.data || [],
+                        notes: notes.data || [],
+                        study_notes: studyNotes.data || [],
+                        flashcards: flashcards.data || [],
+                        quizzes: quizzes.data || [],
+                        study_sessions: studySessions.data || [],
+                        profiles: profiles.data || [],
+                        shared_notes: sharedNotes.data || [],
+                        uploaded_files: uploadedFiles.data || [],
+                        conversation_tags: conversationTags.data || []
+                      }
+                    };
+                    
+                    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `database-export-${new Date().toISOString().split('T')[0]}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    
+                    toast({
+                      title: "Database exported",
+                      description: "All your data has been downloaded as JSON",
+                    });
+                  } catch (error) {
+                    console.error("Export error:", error);
+                    toast({
+                      title: "Export failed",
+                      description: "Failed to export database",
+                      variant: "destructive",
+                    });
+                  }
                 }}
               >
                 <Download className="w-4 h-4 mr-2" />
-                Export My Data
+                Export Database (JSON)
               </Button>
               <Button 
                 variant="destructive" 
