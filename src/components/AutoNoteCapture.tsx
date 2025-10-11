@@ -46,8 +46,8 @@ export const AutoNoteCapture = ({ userId, subject, conversationText, isActive }:
         
         console.log('AI generated notes:', data.message?.slice(0, 100));
         
-        // Save auto-generated note to the notes table
-        const { error: insertError } = await supabase.from("notes").insert({
+        // Save auto-generated note to the study_notes table
+        const { error: insertError } = await supabase.from("study_notes").insert({
           user_id: userId,
           title: `Auto-Notes: ${subject} - ${new Date().toLocaleDateString()}`,
           content: data.message,
