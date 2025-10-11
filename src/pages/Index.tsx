@@ -75,6 +75,13 @@ const Index = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
+  // Update input box with transcript when voice recording
+  useEffect(() => {
+    if (transcript) {
+      setInput(transcript);
+    }
+  }, [transcript]);
+
   const loadUserPreferences = async (userId: string) => {
     const { data } = await supabase
       .from("profiles")
@@ -279,6 +286,7 @@ const Index = () => {
 
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
+    clearTranscript(); // Clear the voice transcript when sending
     const currentImage = uploadedImage;
     setUploadedImage(null);
     setIsLoading(true);
