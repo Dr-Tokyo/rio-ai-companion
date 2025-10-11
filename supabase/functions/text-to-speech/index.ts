@@ -11,37 +11,55 @@ serve(async (req) => {
   }
 
   try {
-    const { text, voice = 'nova' } = await req.json();
+    const { text, voice = 'Sarah' } = await req.json();
 
     if (!text) {
       throw new Error('Text is required');
     }
 
-    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-    if (!OPENAI_API_KEY) {
-      throw new Error('OPENAI_API_KEY not configured');
+    const ELEVENLABS_API_KEY = Deno.env.get('ELEVENLABS_API_KEY');
+    if (!ELEVENLABS_API_KEY) {
+      throw new Error('ELEVENLABS_API_KEY not configured');
     }
 
-    console.log('Generating speech with OpenAI voice:', voice);
+    console.log('Generating speech with ElevenLabs voice:', voice);
 
-    const response = await fetch('https://api.openai.com/v1/audio/speech', {
+    // Map common voice names to ElevenLabs voice IDs
+    const voiceMap: Record<string, string> = {
+      'Sarah': 'EXAVITQu4vr4xnSDxMaL',
+      'Aria': '9BWtsMINqrJLrRacOk9x',
+      'Roger': 'CwhRBWXzGAHq8TQ4Fs17',
+      'Laura': 'FGY2WhTYpPnrIDTdsKH5',
+      'Charlie': 'IKne3meq5aSn9XLyUdCD',
+      'George': 'JBFqnCBsd6RMkjVDRZzb',
+      'River': 'SAz9YHcvj6GT2YYXdXww',
+      'Liam': 'TX3LPaxmHKxFdv7VOQHJ',
+      'Charlotte': 'XB0fDUnXU5powFXDhCwa',
+      'Alice': 'Xb7hH8MSUJpSbSDYk0k2',
+    };
+
+    const voiceId = voiceMap[voice] || voiceMap['Sarah'];
+
+    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'xi-api-key': ELEVENLABS_API_KEY,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'tts-1',
-        input: text,
-        voice: voice,
-        response_format: 'mp3',
+        text: text,
+        model_id: 'eleven_turbo_v2_5',
+        voice_settings: {
+          stability: 0.5,
+          similarity_boost: 0.75,
+        },
       }),
     });
 
     if (!response.ok) {
       const error = await response.text();
-      console.error('OpenAI TTS API error:', error);
-      throw new Error(`OpenAI TTS API error: ${response.status}`);
+      console.error('ElevenLabs TTS API error:', error);
+      throw new Error(`ElevenLabs TTS API error: ${response.status}`);
     }
 
     const audioBuffer = await response.arrayBuffer();
