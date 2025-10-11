@@ -23,38 +23,28 @@ export const AutoNoteCapture = ({ userId, subject, conversationText, isActive }:
         console.log('Starting note capture for:', conversationText.slice(0, 100));
         
         // Call AI to extract key points from conversation
-        const response = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-rio`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-            },
-            body: JSON.stringify({
-              messages: [
-                {
-                  role: "user",
-                  content: `Extract key study notes from this conversation. Format as clear, organized bullet points with main topics and subtopics. Focus on important concepts, definitions, and explanations. Conversation: ${conversationText}`,
-                },
-              ],
-              model: "google/gemini-2.5-flash",
-            }),
-          }
-        );
+        const { data, error } = await supabase.functions.invoke('chat-rio', {
+          body: {
+            messages: [
+              {
+                role: "user",
+                content: `Extract key study notes from this conversation. Format as clear, organized bullet points with main topics and subtopics. Focus on important concepts, definitions, and explanations. Conversation: ${conversationText}`,
+              },
+            ],
+            model: "google/gemini-2.5-flash",
+          },
+        });
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('AI response error:', errorText);
-          throw new Error("Failed to generate notes");
+        if (error) {
+          console.error('AI response error:', error);
+          throw error;
         }
 
-        const data = await response.json();
-        console.log('AI generated notes:', data.message?.slice(0, 100));
-        
-        if (!data.message) {
+        if (!data?.message) {
           throw new Error("No notes generated from AI");
         }
+        
+        console.log('AI generated notes:', data.message?.slice(0, 100));
         
         // Save auto-generated note to the notes table
         const { error: insertError } = await supabase.from("notes").insert({
