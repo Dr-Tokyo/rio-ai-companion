@@ -50,6 +50,7 @@ interface SharedNote {
   note_id: string;
   created_at: string;
   view_count: number;
+  study_notes?: Note;
 }
 
 export const NoteManager = ({ userId, subject }: NoteManagerProps) => {
@@ -86,7 +87,7 @@ export const NoteManager = ({ userId, subject }: NoteManagerProps) => {
   const loadSharedNotes = async () => {
     const { data, error } = await supabase
       .from("shared_notes")
-      .select("*")
+      .select("*, study_notes(*)")
       .eq("shared_by", userId);
 
     if (!error && data) {
@@ -390,12 +391,12 @@ export const NoteManager = ({ userId, subject }: NoteManagerProps) => {
                 ) : (
                   <div className="space-y-3">
                     {sharedNotes.map((share) => {
-                      const note = notes.find(n => n.id === share.note_id);
+                      const note = share.study_notes || notes.find(n => n.id === share.note_id);
                       return (
                         <Card key={share.id}>
                           <CardHeader>
                             <div className="flex items-start justify-between">
-                              <div>
+                              <div className="flex-1">
                                 <CardTitle className="text-base">
                                   {note?.title || "Note"}
                                 </CardTitle>
@@ -406,15 +407,38 @@ export const NoteManager = ({ userId, subject }: NoteManagerProps) => {
                                   Views: {share.view_count} • Created: {new Date(share.created_at).toLocaleDateString()}
                                 </CardDescription>
                               </div>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleDeleteShare(share.id)}
-                              >
-                                <Trash2 className="w-4 h-4 text-destructive" />
-                              </Button>
+                              <div className="flex gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => {
+                                    const shareUrl = `${window.location.origin}/shared/${share.share_code}`;
+                                    navigator.clipboard.writeText(shareUrl);
+                                    toast({
+                                      title: "Copied!",
+                                      description: "Share link copied to clipboard",
+                                    });
+                                  }}
+                                >
+                                  <Copy className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleDeleteShare(share.id)}
+                                >
+                                  <Trash2 className="w-4 h-4 text-destructive" />
+                                </Button>
+                              </div>
                             </div>
                           </CardHeader>
+                          {note?.content && (
+                            <CardContent>
+                              <p className="text-sm text-muted-foreground line-clamp-2">
+                                {note.content}
+                              </p>
+                            </CardContent>
+                          )}
                         </Card>
                       );
                     })}

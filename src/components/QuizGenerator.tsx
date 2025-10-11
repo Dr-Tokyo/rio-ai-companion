@@ -52,32 +52,26 @@ export const QuizGenerator = ({ userId, subject }: QuizGeneratorProps) => {
 
     setIsGenerating(true);
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-rio`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({
-            messages: [
-              {
-                role: "user",
-                content: `Generate a quiz with 5 multiple choice questions about ${topic} for ${subject}. Format your response as JSON: {"questions": [{"question": "...", "options": ["A", "B", "C", "D"], "correctAnswer": 0}]}. Only return the JSON, no other text.`,
-              },
-            ],
-            model: "google/gemini-2.5-flash",
-          }),
-        }
-      );
+      const { data, error } = await supabase.functions.invoke('chat-rio', {
+        body: {
+          messages: [
+            {
+              role: "user",
+              content: `Generate a quiz with 5 multiple choice questions about ${topic} for ${subject}. Format your response as JSON: {"questions": [{"question": "...", "options": ["A", "B", "C", "D"], "correctAnswer": 0}]}. Only return the JSON, no other text.`,
+            },
+          ],
+          model: "google/gemini-2.5-flash",
+        },
+      });
 
-      const data = await response.json();
+      if (error) throw error;
+
       const quizData = JSON.parse(data.message);
       setQuestions(quizData.questions);
       setCurrentQuestion(0);
       setQuizComplete(false);
     } catch (error) {
+      console.error("Quiz generation error:", error);
       toast({
         title: "Failed to generate quiz",
         description: "Please try again",
