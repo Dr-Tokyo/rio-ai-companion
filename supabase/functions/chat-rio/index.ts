@@ -53,7 +53,15 @@ async function callAIModel(model: string, messages: any[], apiKeys: { lovable?: 
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Lovable AI gateway error:", response.status, errorText);
-      throw new Error("Lovable AI gateway error");
+      
+      if (response.status === 429) {
+        throw new Error("Rate limit exceeded. Please try again in a moment.");
+      }
+      if (response.status === 402) {
+        throw new Error("Out of AI credits. Please add credits in Settings → Workspace → Usage to continue.");
+      }
+      
+      throw new Error("AI gateway error");
     }
     
     const data = await response.json();
@@ -80,6 +88,14 @@ async function callAIModel(model: string, messages: any[], apiKeys: { lovable?: 
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Anthropic API error:", response.status, errorText);
+      
+      if (response.status === 429) {
+        throw new Error("Rate limit exceeded. Please try again in a moment.");
+      }
+      if (response.status === 402) {
+        throw new Error("Out of AI credits. Please check your Anthropic account.");
+      }
+      
       throw new Error("Anthropic API error");
     }
     
@@ -104,6 +120,11 @@ async function callAIModel(model: string, messages: any[], apiKeys: { lovable?: 
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Qwen API error:", response.status, errorText);
+      
+      if (response.status === 429) {
+        throw new Error("Rate limit exceeded. Please try again in a moment.");
+      }
+      
       throw new Error("Qwen API error");
     }
     
